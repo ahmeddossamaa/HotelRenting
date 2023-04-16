@@ -2,9 +2,8 @@ import re
 import datetime as dt
 import pandas as pd
 
-
-def save(data, fileName):
-    data.to_csv(f"../input/{fileName}")
+from config.constants import ADDRESS_COLUMN
+from src.Helpers import geoCoding
 
 
 def fix_date(x):
@@ -31,65 +30,49 @@ def fix_date_v2(data):
     data.info()
 
 
-def process_tags_Column(a):
+def process_tags_column(a):
     b = eval(a)
 
     trip_type = ''
     trv_type = ''
     room_type = ''
     days_number = ''
-
-    if len(b) > 0:
-        if 'trip' in b[0]:
-            trip_type = b[0].strip('[]\' ')
-        else:
-            types = ['group', 'couple', 'solo', 'family']
-            for t in types:
-                if t in b[0].lower():
-                    trv_type = b[0].strip('[]\' ')
-        if len(b) > 1:
-            types = ['group', 'couple', 'solo', 'family']
-            for t in types:
-                if t in b[1].lower():
-                    trv_type = b[1].strip('[]\' ')
-            if trv_type == '':
-                if 'room' or 'bed' in b[1].lower():
-                    room_type = b[1].strip('[]\' ')
-        if len(b) > 2:
-            if 'room' or 'bed' in b[2].lower():
-                room_type = b[2].strip('[]\' ')
-            else:
-                if 'night' in b[2].lower():
-                    days_number = b[2].strip('[]\' ')
-        if len(b) > 3:
-            if 'night' in b[3].lower():
-                days_number = b[3].strip('[]\' ')
-
-    # print(f'trip = {trip_type}, {trv_type}, {room_type}, {days_number}')
-    return trip_type, trv_type, room_type, days_number
-
-
-def process_tags_column_v2(a):
-    b = eval(a)
-
-    trip_type = ''
-    trv_type = ''
-    room_type = ''
-    days_number = ''
-    submission = ''
+    submitted = 0
+    pet = 0
+    remaining = []
 
     for i in b:
         i = i.lower().strip()
 
         check = lambda r: re.search(r, i)
 
-        if check(r"\btrip\b"):
+        if check(r"submitted|mobile") and submitted == 0:
+            submitted = 1
+        elif check(r"pet") and pet == 0:
+            pet = 1
+        elif check(r"\btrip\b") and trip_type == '':
             trip_type = i
-        elif check(r"group|couple|solo|family"):
-            trv_type = i
-        elif check(r"room[s]?|bed[s]?"):
+        elif check(r"night[s]?") and days_number == '':
+            res = re.search('[0-9]+', i)
+            days_number = res.group() if res else ''
+        elif check(r"room[s]?|bed[s]?|suite[s]?|deluxe[s]?|standard|studio|apartment|king[s]?|queen[s]?") and room_type == '':
             room_type = i
-        elif check(r"night[s]?"):
-            days_number = i
+        elif check(r"group|couple|solo|family|friend[s]?") and trv_type == '':
+            trv_type = i
+        else:
+            remaining.append(i)
 
-    return trip_type, trv_type, room_type, days_number
+    return trip_type, trv_type, room_type, days_number, submitted, pet, remaining
+
+
+def processLongLat(a):
+    # if a['lat'] is not None:
+    #     return a
+    # print(f"a={a}")
+    # return None, None
+    res = geoCoding(a[ADDRESS_COLUMN])
+    if res:
+        res = res['features'][0]['geometry']['coordinates']
+        print(f"res={res}")
+        return res[1], res[0]
+    return None, None
