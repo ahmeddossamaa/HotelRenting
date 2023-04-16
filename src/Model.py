@@ -50,7 +50,7 @@ main()
 # res = geoCoding(data[ADDRESS_COLUMN][0])['features'][0]['geometry']['coordinates']
 # print(f"lat={res[1]}, lng={res[0]}")
 
-"""{'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [
+"""{'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [ 
 -0.151015, 51.510608]}, 'properties': {'country_code': 'gb', 'housenumber': '44', 'street': 'Grosvenor Square', 
 'country': 'United Kingdom', 'datasource': {'sourcename': 'openstreetmap', 'attribution': '© OpenStreetMap 
 contributors', 'license': 'Open Database License', 'url': 'https://www.openstreetmap.org/copyright'}, 'postcode': 

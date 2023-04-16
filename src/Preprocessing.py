@@ -17,17 +17,20 @@ def fix_date(x):
 
         x[i] = float(dt.date(int(t[2]), int(t[1]), int(t[0])).timetuple().tm_yday)
 
-    return pd.DataFrame({'Date': x}, dtype='float64')
+    return pd.DataFrame({
+        'Date': x
+    }, dtype='float64')
 
 
 def fix_date_v2(data):
-    data['Date'] = pd.to_datetime(data['Date'], infer_datetime_format=True, dayfirst=True)
-    data.info()
-    data['day'] = data['Date'].dt.day
-    data['month'] = data['Date'].dt.month
-    data['year'] = data['Date'].dt.year
-    data = data.drop('Date', axis=1)
-    data.info()
+    date = pd.to_datetime(data['Date'], infer_datetime_format=True, dayfirst=True)
+    # data.info()
+    # data['day'] = data['Date'].dt.day
+    # data['month'] = data['Date'].dt.month
+    # data['year'] = data['Date'].dt.year
+    # data = data.drop('Date', axis=1)
+    # data.info()
+    return date.dt.day, date.dt.month, date.dt.year
 
 
 def process_tags_column(a):
