@@ -1,9 +1,9 @@
 import re
 import datetime as dt
 import pandas as pd
-
-from config.constants import ADDRESS_COLUMN
-from src.Helpers import geoCoding
+import concurrent.futures
+from config.constants import ADDRESS_COLUMN, TAGS_COLUMN
+from src.Helpers import geoCoding, labelEncoding, featureScaling
 
 
 def fix_date(x):
@@ -22,15 +22,9 @@ def fix_date(x):
     }, dtype='float64')
 
 
-def fix_date_v2(data):
-    date = pd.to_datetime(data['Date'], infer_datetime_format=True, dayfirst=True)
-    # data.info()
-    # data['day'] = data['Date'].dt.day
-    # data['month'] = data['Date'].dt.month
-    # data['year'] = data['Date'].dt.year
-    # data = data.drop('Date', axis=1)
-    # data.info()
-    return date.dt.day, date.dt.month, date.dt.year
+def fix_date_v2(a):
+    date = pd.to_datetime(a, infer_datetime_format=True, dayfirst=True)
+    return date.day, date.month, date.year
 
 
 def process_tags_column(a):
@@ -42,7 +36,7 @@ def process_tags_column(a):
     days_number = ''
     submitted = 0
     pet = 0
-    remaining = []
+    # remaining = []
 
     for i in b:
         i = i.lower().strip()
@@ -58,14 +52,15 @@ def process_tags_column(a):
         elif check(r"night[s]?") and days_number == '':
             res = re.search('[0-9]+', i)
             days_number = res.group() if res else ''
-        elif check(r"room[s]?|bed[s]?|suite[s]?|deluxe[s]?|standard|studio|apartment|king[s]?|queen[s]?") and room_type == '':
+        elif check(
+                r"room[s]?|bed[s]?|suite[s]?|deluxe[s]?|standard|studio|apartment|king[s]?|queen[s]?") and room_type == '':
             room_type = i
         elif check(r"group|couple|solo|family|friend[s]?") and trv_type == '':
             trv_type = i
-        else:
-            remaining.append(i)
+        # else:
+        #     remaining.append(i)
 
-    return trip_type, trv_type, room_type, days_number, submitted, pet, remaining
+    return trip_type, trv_type, room_type, days_number, submitted, pet
 
 
 def processLongLat(a):
@@ -79,3 +74,36 @@ def processLongLat(a):
         print(f"res={res}")
         return res[1], res[0]
     return None, None
+
+
+def preprocessing(data):
+    cols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted', 'pet']
+    dateCols = ['rev_day', 'rev_month', 'rev_year']
+    encodeColumns = ['Hotel_Name', 'Reviewer_Nationality', 'trip_type', 'room_type', 'trv_type', 'rev_day', 'rev_month', 'rev_year', 'days_number']
+
+    df = pd.DataFrame()
+
+    print("Processing Tags...")
+    data[cols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
+    print("Tags Processed!")
+
+    print("Processing Date...")
+    data[dateCols] = data['Review_Date'].apply(fix_date_v2).apply(pd.Series)
+    print("Date Processed!")
+    # data[cols] = df[cols]
+    # data[dateCols] = df[dateCols]
+
+    print("Encoding Columns...")
+
+    def encode_column(column):
+        if column not in data.keys():
+            return pd.Series(dtype='float64')
+        encoded_column = labelEncoding(data[column]).astype('float64')
+        return featureScaling(encoded_column)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(encode_column, encodeColumns))
+    for i, column in enumerate(encodeColumns):
+        df[column] = results[i]
+    print("Columns Encoded!")
+    return df

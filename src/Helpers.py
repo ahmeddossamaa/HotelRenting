@@ -1,15 +1,13 @@
 import requests
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
 from requests.structures import CaseInsensitiveDict
 
 
 # Encoding
-def labelEncoding(x, c):
+def labelEncoding(x):
     lbl = LabelEncoder()
-    lbl.fit(list(x[c].values))
-    x[c] = lbl.transform(list(x[c].values))
-    return x
+    return lbl.fit_transform(x)
 
 
 def oneHotEncoding(x):
@@ -23,9 +21,12 @@ def featureScaling(x):
     if mini == maxi:
         return x
 
-    x.iloc[:] = (x.iloc[:] - mini) / (maxi - mini)
+    x = (x - mini) / (maxi - mini)
 
     return x
+    # scaler = MinMaxScaler()
+    # # fit and transform the column
+    # return scaler.fit_transform([x])
 
 
 def save(data, fileName):
