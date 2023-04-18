@@ -16,7 +16,7 @@ def main():
     #     print(i)
     data[["lat", "lng"]] = data[data['lat'].isnull()].iloc[0:3, :].apply(processLongLat, axis=1).apply(pd.Series)
 
-    save(data, 'hotels-with-add-3.csv')
+    save(data, 'hotels-with-add', 3)
 
     data2 = pd.read_csv("../input/hotels-with-add-3.csv")
 

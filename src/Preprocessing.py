@@ -2,8 +2,8 @@ import re
 import datetime as dt
 import pandas as pd
 import concurrent.futures
-from config.constants import ADDRESS_COLUMN, TAGS_COLUMN
-from src.Helpers import geoCoding, labelEncoding, featureScaling
+from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN
+from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString
 
 
 def fix_date(x):
@@ -50,8 +50,7 @@ def process_tags_column(a):
         elif check(r"\btrip\b") and trip_type == '':
             trip_type = i
         elif check(r"night[s]?") and days_number == '':
-            res = re.search('[0-9]+', i)
-            days_number = res.group() if res else ''
+            days_number = extractNumberFromString(i)
         elif check(
                 r"room[s]?|bed[s]?|suite[s]?|deluxe[s]?|standard|studio|apartment|king[s]?|queen[s]?") and room_type == '':
             room_type = i
@@ -77,33 +76,55 @@ def processLongLat(a):
 
 
 def preprocessing(data):
-    cols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted', 'pet']
-    dateCols = ['rev_day', 'rev_month', 'rev_year']
-    encodeColumns = ['Hotel_Name', 'Reviewer_Nationality', 'trip_type', 'room_type', 'trv_type', 'rev_day', 'rev_month', 'rev_year', 'days_number']
+    dateCols = ['review_day', 'review_month', 'review_year']
+    tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
     df = pd.DataFrame()
 
-    print("Processing Tags...")
-    data[cols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
-    print("Tags Processed!")
+    data.drop(["Hotel_Address", "lat", "lng",
+               "Negative_Review", "Review_Total_Negative_Word_Counts",
+               "Total_Number_of_Reviews", "Positive_Review",
+               "Review_Total_Positive_Word_Counts",
+               "Total_Number_of_Reviews_Reviewer_Has_Given"
+               ], axis=1, inplace=True)
 
-    print("Processing Date...")
-    data[dateCols] = data['Review_Date'].apply(fix_date_v2).apply(pd.Series)
-    print("Date Processed!")
-    # data[cols] = df[cols]
-    # data[dateCols] = df[dateCols]
+    try:
+        print("Processing Tags...")
+        data[tagsCols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
+        data.drop([TAGS_COLUMN], axis=1, inplace=True)
+        print("Tags Processed!")
+    except Exception as e:
+        print("Error While Processing: ", e)
 
-    print("Encoding Columns...")
+    try:
+        print("Processing Date...")
+        data[dateCols] = data[DATE_COLUMN].apply(fix_date_v2).apply(pd.Series)
+        data.drop([DATE_COLUMN], axis=1, inplace=True)
+        print("Date Processed!")
+    except Exception as e:
+        print("Error While Processing: ", e)
+
+    try:
+        print("Processing Days Since Review...")
+        data["days_since_review"] = data["days_since_review"].apply(extractNumberFromString).apply(pd.Series)
+        data.drop(["days_since_review"], axis=1, inplace=True)
+        print("Days Since Review Processed!")
+    except Exception as e:
+        print("Error While Processing: ", e)
 
     def encode_column(column):
         if column not in data.keys():
             return pd.Series(dtype='float64')
-        encoded_column = labelEncoding(data[column]).astype('float64')
-        return featureScaling(encoded_column)
+        return featureScaling(labelEncoding(data[column]).astype('float64'))
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = list(executor.map(encode_column, encodeColumns))
-    for i, column in enumerate(encodeColumns):
-        df[column] = results[i]
-    print("Columns Encoded!")
+    try:
+        print("Encoding Columns...")
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = list(executor.map(encode_column, data.keys()))
+        for i, column in enumerate(data.keys()):
+            df[column] = results[i]
+        print("Columns Encoded!")
+    except Exception as e:
+        print("Error While Processing: ", e)
+
     return df

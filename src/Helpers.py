@@ -1,3 +1,5 @@
+import re
+
 import requests
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
@@ -6,6 +8,8 @@ from requests.structures import CaseInsensitiveDict
 
 # Encoding
 def labelEncoding(x):
+    # if x.dtype != 'float64':
+    #     return x
     lbl = LabelEncoder()
     return lbl.fit_transform(x)
 
@@ -29,8 +33,11 @@ def featureScaling(x):
     # return scaler.fit_transform([x])
 
 
-def save(data, fileName):
-    data.to_csv(f"../input/{fileName}")
+def save(data, fileName, v, f='csv'):
+    try:
+        data.to_csv(f"../input/{fileName}-v{v}.{f}")
+    except:
+        save(data, fileName, v + 1, f)
 
 
 def open_file(fileName):
@@ -70,3 +77,8 @@ def geoCoding(text):
     resp = requests.get(url, headers=headers)
 
     return resp.json()
+
+
+def extractNumberFromString(text):
+    res = re.search('[0-9]+', text)
+    return res.group() if res else None
