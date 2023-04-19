@@ -89,22 +89,19 @@ def preprocessing(data):
                ], axis=1, inplace=True)
 
     try:
+        # Tags
         print("Processing Tags...")
         data[tagsCols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
         data.drop([TAGS_COLUMN], axis=1, inplace=True)
         print("Tags Processed!")
-    except Exception as e:
-        print("Error While Processing: ", e)
 
-    try:
+        # Date
         print("Processing Date...")
         data[dateCols] = data[DATE_COLUMN].apply(fix_date_v2).apply(pd.Series)
         data.drop([DATE_COLUMN], axis=1, inplace=True)
         print("Date Processed!")
-    except Exception as e:
-        print("Error While Processing: ", e)
 
-    try:
+        # Days Since
         print("Processing Days Since Review...")
         data["days_since_review"] = data["days_since_review"].apply(extractNumberFromString).apply(pd.Series)
         data.drop(["days_since_review"], axis=1, inplace=True)
