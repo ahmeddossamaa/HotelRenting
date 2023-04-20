@@ -3,10 +3,9 @@ import datetime as dt
 import pandas as pd
 import concurrent.futures
 from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN
-from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString
+from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save
 
-
-def fix_date(x):
+"""def fix_date(x):
     for i in range(len(x)):
         if x[i].find("-") != -1:
             t = x[i].split("-")
@@ -19,10 +18,10 @@ def fix_date(x):
 
     return pd.DataFrame({
         'Date': x
-    }, dtype='float64')
+    }, dtype='float64')"""
 
 
-def fix_date_v2(a):
+def fix_date(a):
     date = pd.to_datetime(a, infer_datetime_format=True, dayfirst=True)
     return date.day, date.month, date.year
 
@@ -63,10 +62,6 @@ def process_tags_column(a):
 
 
 def processLongLat(a):
-    # if a['lat'] is not None:
-    #     return a
-    # print(f"a={a}")
-    # return None, None
     res = geoCoding(a[ADDRESS_COLUMN])
     if res:
         res = res['features'][0]['geometry']['coordinates']
@@ -75,53 +70,105 @@ def processLongLat(a):
     return None, None
 
 
-def preprocessing(data):
+def processNewColumns(data):
     dateCols = ['review_day', 'review_month', 'review_year']
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
-
-    df = pd.DataFrame()
-
-    data.drop(["Hotel_Address", "lat", "lng",
-               "Negative_Review", "Review_Total_Negative_Word_Counts",
-               "Total_Number_of_Reviews", "Positive_Review",
-               "Review_Total_Positive_Word_Counts",
-               "Total_Number_of_Reviews_Reviewer_Has_Given"
-               ], axis=1, inplace=True)
 
     try:
         # Tags
         print("Processing Tags...")
         data[tagsCols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
-        data.drop([TAGS_COLUMN], axis=1, inplace=True)
         print("Tags Processed!")
 
         # Date
         print("Processing Date...")
-        data[dateCols] = data[DATE_COLUMN].apply(fix_date_v2).apply(pd.Series)
-        data.drop([DATE_COLUMN], axis=1, inplace=True)
+        data[dateCols] = data[DATE_COLUMN].apply(fix_date).apply(pd.Series)
         print("Date Processed!")
 
         # Days Since
         print("Processing Days Since Review...")
         data["days_since_review"] = data["days_since_review"].apply(extractNumberFromString).apply(pd.Series)
-        data.drop(["days_since_review"], axis=1, inplace=True)
         print("Days Since Review Processed!")
+
+        # Drop Columns
+        print("Dropping Redundant Columns...")
+        data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
+        print("Redundant Columns Dropped!")
+
+        save(data, "columns-processing", 1)
     except Exception as e:
         print("Error While Processing: ", e)
 
-    def encode_column(column):
-        if column not in data.keys():
-            return pd.Series(dtype='float64')
-        return featureScaling(labelEncoding(data[column]).astype('float64'))
+    return data
+
+
+def encodeAndScaleColumns(data):
+    cols = {
+        'trip_type': {
+            'label': False,
+            'oneHot': True,
+        },
+        'trv_type': {
+            'label': True,
+            'oneHot': False,
+        },
+        'room_type': {
+            'label': True,
+            'oneHot': False,
+        },
+        'Hotel_Name': {
+            'label': True,
+            'oneHot': False,
+        },
+        'Reviewer_Nationality': {
+            'label': True,
+            'oneHot': False,
+        },
+        'Hotel_Country': {
+            'label': False,
+            'oneHot': True,
+        },
+        'Hotel_City': {
+            'label': False,
+            'oneHot': True,
+        },
+    }
 
     try:
-        print("Encoding Columns...")
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(encode_column, data.keys()))
-        for i, column in enumerate(data.keys()):
-            df[column] = results[i]
-        print("Columns Encoded!")
-    except Exception as e:
-        print("Error While Processing: ", e)
+        for i in cols:
+            if cols[i]['label']:
+                data[i] = labelEncoding(data[i])
+            elif cols[i]['oneHot']:
+                x = oneHotEncoding(data[[i]])
+                data.drop([i], axis=1, inplace=True)
+                data = pd.concat([data, x], axis=1)
 
-    return df
+        for i in data:
+            data[i] = featureScaling(data[i])
+
+        save(data, "columns-encoding-scaling", 1)
+    except Exception as e:
+        print("Error While Processing", e)
+
+    return data
+
+
+def preprocessing(data):
+    data.drop_duplicates()
+
+    # def encode_column(column):
+    #     if column not in data.keys():
+    #         return pd.Series(dtype='float64')
+    #     return featureScaling(labelEncoding(data[column]).astype('float64'))
+    #
+    # try:
+    #     print("Encoding Columns...")
+    #     with concurrent.futures.ThreadPoolExecutor() as executor:
+    #         results = list(executor.map(encode_column, data.keys()))
+    #     for i, column in enumerate(data.keys()):
+    #         df[column] = results[i]
+    #     print("Columns Encoded!")
+    # except Exception as e:
+    #     print("Error While Processing: ", e)
+
+    return encodeAndScaleColumns(processNewColumns(data))
