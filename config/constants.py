@@ -1,4 +1,4 @@
-TARGET = 'Reviewer_Score'
+TARGET_COLUMN = 'Reviewer_Score'
 
 TAGS_COLUMN = 'Tags'
 HOTEL_NAME_COLUMN = 'Hotel_Name'

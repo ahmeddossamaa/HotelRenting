@@ -1,6 +1,9 @@
 import pandas as pd
 import scipy.stats as stats
+import seaborn as sns
+from matplotlib import pyplot as plt
 from sklearn.feature_selection import SelectKBest, f_classif
+from config.constants import TARGET_COLUMN
 
 
 def anova(x, y, k):
@@ -21,10 +24,12 @@ def categToNumerical(data, l):
     return p_value, new
 
 
-def pearson(d, x, t, l):
-    corr = d.corr(x[t], method='pearson', min_periods=1)
-
-    return corr
+def pearson(d, l):
+    corr = d.corr()
+    # plt.subplots(figsize=(12, 8))
+    # sns.heatmap(corr, annot=True)
+    # plt.show()
+    return corr.index[abs(corr[TARGET_COLUMN]) > l]
 
 
 """
@@ -44,22 +49,22 @@ def NumericalCorrelation(data):
 
 """
 
-data = pd.read_csv("C:/Users/SCH/Desktop/data/hotel-regression-dataset (2).csv")
-x = pd.read_csv("C:/Users/SCH/Desktop/data/test-preprocessing-v3.csv")
-x = x[
-    ['Hotel_Name', 'Reviewer_Nationality', 'room_type', 'trv_type', 'rev_month', 'rev_day', 'days_number', 'trip_type',
-     'rev_year']]
-# x['trip_type'], x['rev_year']
-x['review'] = data['Reviewer_Score']
-print(x)
-
-sper = []
-new = []
-l = data['Reviewer_Score']
-# ano = anova(x.iloc[:,7:9],data['Reviewer_Score'],1)
-ano, new = categToNumerical(x, l)
-sper.append(pearson(x.iloc[:, 7], x, 'review', 0))
-sper.append(pearson(x.iloc[:, 8], x, 'review', 0))
-print(ano)
-print(new)
-print(sper)
+# data = pd.read_csv("C:/Users/SCH/Desktop/data/hotel-regression-dataset (2).csv")
+# x = pd.read_csv("C:/Users/SCH/Desktop/data/test-preprocessing-v3.csv")
+# x = x[
+#     ['Hotel_Name', 'Reviewer_Nationality', 'room_type', 'trv_type', 'rev_month', 'rev_day', 'days_number', 'trip_type',
+#      'rev_year']]
+# # x['trip_type'], x['rev_year']
+# x['review'] = data['Reviewer_Score']
+# print(x)
+#
+# sper = []
+# new = []
+# l = data['Reviewer_Score']
+# # ano = anova(x.iloc[:,7:9],data['Reviewer_Score'],1)
+# ano, new = categToNumerical(x, l)
+# sper.append(pearson(x.iloc[:, 7], x, 'review', 0))
+# sper.append(pearson(x.iloc[:, 8], x, 'review', 0))
+# print(ano)
+# print(new)
+# print(sper)

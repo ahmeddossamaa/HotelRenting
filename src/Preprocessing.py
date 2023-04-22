@@ -3,7 +3,8 @@ import datetime as dt
 import pandas as pd
 import concurrent.futures
 from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN
-from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save
+from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
+    pickleStore, open_file, pickleOpen
 
 """def fix_date(x):
     for i in range(len(x)):
@@ -71,6 +72,7 @@ def processLongLat(a):
 
 
 def processNewColumns(data):
+    return open_file("columns-processing-v1.csv")
     dateCols = ['review_day', 'review_month', 'review_year']
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
@@ -97,12 +99,12 @@ def processNewColumns(data):
 
         save(data, "columns-processing", 1)
     except Exception as e:
-        print("Error While Processing: ", e)
+        print("Error while processing in processNewColumns:", e)
 
     return data
 
 
-def encodeAndScaleColumns(data):
+def encodeAndScaleColumns(data, isTesting):
     cols = {
         'trip_type': {
             'label': False,
@@ -135,25 +137,51 @@ def encodeAndScaleColumns(data):
     }
 
     try:
+        encoders = dict()
+        print("Encoding Columns...")
+        if isTesting:
+            encoders = pickleOpen("encoders")
         for i in cols:
+            encoder = ''
             if cols[i]['label']:
-                data[i] = labelEncoding(data[i])
+                if encoders[i] is not None:
+                    data[i] = labelEncoding(data[i], encoders[i])
+                else:
+                    encoder, data[i] = labelEncoding(data[i])
             elif cols[i]['oneHot']:
-                x = oneHotEncoding(data[[i]])
+                if encoders[i] is not None:
+                    x = oneHotEncoding(data[[i]], encoders[i])
+                else:
+                    encoder, x = oneHotEncoding(data[[i]])
                 data.drop([i], axis=1, inplace=True)
                 data = pd.concat([data, x], axis=1)
 
+            if encoder != '':
+                encoders[i] = encoder
+        print("Columns Encoded!")
+
+        save(data, "columns-encoded", 1)
+
+        if not isTesting:
+            print("Storing Encoders...")
+            pickleStore(encoders, "encoders")
+            print("Encoders Stored!")
+
+        print("Scaling Columns...")
         for i in data:
             data[i] = featureScaling(data[i])
+        print("Columns Scaled!")
 
-        save(data, "columns-encoding-scaling", 1)
+        save(data, "columns-scaled", 1)
     except Exception as e:
-        print("Error While Processing", e)
+        print("Error while processing in encodeAndScaleColumns:", e)
+
+    print(data)
 
     return data
 
 
-def preprocessing(data):
+def preprocessing(data, isTesting=False):
     data.drop_duplicates()
 
     # def encode_column(column):
@@ -171,4 +199,4 @@ def preprocessing(data):
     # except Exception as e:
     #     print("Error While Processing: ", e)
 
-    return encodeAndScaleColumns(processNewColumns(data))
+    return encodeAndScaleColumns(processNewColumns(data), isTesting)

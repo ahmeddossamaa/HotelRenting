@@ -1,5 +1,5 @@
 import re
-
+import pickle
 import requests
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
@@ -7,15 +7,20 @@ from requests.structures import CaseInsensitiveDict
 
 
 # Encoding
-def labelEncoding(x):
-    lbl = LabelEncoder()
-    return lbl.fit_transform(x)
+def labelEncoding(x, encoder=None):
+    if encoder is not None:
+        return encoder.fit_transform(x)
+    encoder = LabelEncoder()
+    return encoder, encoder.fit_transform(x)
 
 
-def oneHotEncoding(x):
-    encode = OneHotEncoder()
-    encoded = encode.fit_transform(x)
-    return pd.DataFrame(encoded.todense(), columns=encode.get_feature_names())
+def oneHotEncoding(x, encoder=None):
+    if encoder is not None:
+        encoded = encoder.fit_transform(x)
+        return pd.DataFrame(encoded.todense(), columns=encoder.get_feature_names())
+    encoder = OneHotEncoder()
+    encoded = encoder.fit_transform(x)
+    return encoder, pd.DataFrame(encoded.todense(), columns=encoder.get_feature_names())
 
 
 # Scaling
@@ -34,7 +39,7 @@ def save(data, fileName, v, f='csv'):
     try:
         data.to_csv(f"../input/{fileName}-v{v}.{f}")
         print(f"Last version is {v}")
-    except NameError:
+    except:
         save(data, fileName, v + 1, f)
 
 
@@ -80,3 +85,13 @@ def geoCoding(text):
 def extractNumberFromString(text):
     res = re.search('[0-9]+', text)
     return res.group() if res else None
+
+
+def pickleStore(data, name):
+    with open(f'{name}.pkl', 'wb') as f:
+        pickle.dump(data, f)
+
+
+def pickleOpen(name):
+    with open(f'{name}.pkl', 'rb') as f:
+        return pickle.load(f)
