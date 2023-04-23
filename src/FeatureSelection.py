@@ -4,6 +4,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from sklearn.feature_selection import SelectKBest, f_classif
 from config.constants import TARGET_COLUMN
+from sklearn.linear_model import Ridge
 
 
 def anova(x, y, k):
@@ -31,7 +32,7 @@ def pearson(d, l):
     # plt.show()
     return corr.index[abs(corr[TARGET_COLUMN]) > l]
 
-
+#dimensions reductions (to)
 """
 def NumericalCorrelation(data):
 

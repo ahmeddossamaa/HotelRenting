@@ -1,10 +1,12 @@
 import re
 import datetime as dt
 import pandas as pd
+from sklearn.model_selection import train_test_split
 import concurrent.futures
+from src.Model import TreeClassifier
+from sklearn.metrics import accuracy_score
 from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN
-from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
-    pickleStore, open_file, pickleOpen
+from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save,  pickleStore, open_file, pickleOpen
 
 """def fix_date(x):
     for i in range(len(x)):
@@ -200,3 +202,34 @@ def preprocessing(data, isTesting=False):
     #     print("Error While Processing: ", e)
 
     return encodeAndScaleColumns(processNewColumns(data), isTesting)
+
+def GetMissingTripType(df):
+    #get the dataset
+    
+    #labelenconding 
+    encoder, df.loc[:,'trv_type']  = labelEncoding(df.loc[:,'trv_type'])
+    encoder, df.loc[:,'room_type'] = labelEncoding(df.loc[:,'room_type',])
+    #df[['trv_type', 'room_type', 'days_number']] = featureScalingScikit(df[['trv_type', 'room_type', 'days_number']])
+    dfOfNulls = df[df['trip_type'].isnull()]
+    df = df.dropna()
+    encoder, df.loc[:,'trip_type'] = labelEncoding(df.loc[:,'trip_type'])
+    ##
+    
+    
+    X = df[['trv_type', 'room_type', 'days_number']]
+    
+    y = df['trip_type']
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+    
+    treecls = TreeClassifier(X_train, y_train)
+    y_pred = treecls.predict(X_test)
+    
+    accuracy = accuracy_score(y_test, y_pred)
+    print(accuracy)
+     
+    #there's nulls in days numbers!
+    dfOfNulls = dfOfNulls[dfOfNulls['days_number'].isna() == False]
+    dfOfNulls['trip_type'] = treecls.predict(dfOfNulls[['trv_type', 'room_type', 'days_number']])
+    
+    return dfOfNulls
