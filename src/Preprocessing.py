@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import concurrent.futures
 
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, OrdinalEncoder
 
 from src.Model import TreeClassifier
 from sklearn.metrics import accuracy_score
@@ -113,6 +113,9 @@ def processNewColumns(data):
 
 
 def encodeAndScaleColumns(data, isTesting):
+    if isTesting:
+        data.dropna(inplace=True)
+
     cols = {
         'trip_type': {
             'label': False,
@@ -152,31 +155,22 @@ def encodeAndScaleColumns(data, isTesting):
             encoders = pickleOpen("encoders")
         for i in cols:
             encoder = encoders[i] if i in encoders.keys() else None
-            # print(f"encoder={encoder}")
 
             if cols[i]['label']:
                 if encoder is None:
-                    # print(f"encoder={encoder}")
-                    encoder = LabelEncoder()
-                    print(f"encoder={encoder}")
-                    # print(f"-----------------")
+                    encoder = OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1)
 
-                data[i] = encode(data[i], encoder, testing=isTesting)
-                # print(f"data[{i}]", data[i])
+                data[i] = encode(data[[i]], encoder, testing=isTesting)
             elif cols[i]['oneHot']:
-                if encoder is None:
-                    encoder = OneHotEncoder()
+                encoder = OneHotEncoder()
 
-                x = encode(data[[i]], encoder, testing=isTesting, label=False)
-                # print(x)
+                x = encode(data[[i]], encoder, label=False)
                 data = data.drop([i], axis=1)
+
+                # data = pd.concat([data, x], axis=0)
+
                 for j in x:
-                    # print(j, "x = ", x[j])
-                    data[j] = x[j]
-                # print(data)
-                # data = pd.concat([data, x], axis=1).drop_duplicates().reset_index(drop=True)
-                # print(data)
-                # print("---------------")
+                    data[j] = x.loc[:, j]
 
             if encoder is not None:
                 encoders[i] = encoder
@@ -204,7 +198,8 @@ def encodeAndScaleColumns(data, isTesting):
 
 
 def preprocessing(data, isTesting=False):
-    # data = processNewColumns(data)
+    # if isTesting:
+    #     data = processNewColumns(data)
     data = encodeAndScaleColumns(data, isTesting)
 
     return data
@@ -214,8 +209,10 @@ def GetMissingTripType(df):
     # get the dataset
 
     # labelenconding
-    encoder, df.loc[:, 'trv_type'] = labelEncoding(df.loc[:, 'trv_type'])
-    encoder, df.loc[:, 'room_type'] = labelEncoding(df.loc[:, 'room_type', ])
+    encoder = LabelEncoder()
+    df.loc[:, 'trv_type'] = encode(df.loc[:, 'trv_type'], encoder)
+    encoder = LabelEncoder()
+    df.loc[:, 'room_type'] = encode(df.loc[:, 'room_type'], encoder)
     # df[['trv_type', 'room_type', 'days_number']] = featureScalingScikit(df[['trv_type', 'room_type', 'days_number']])
     dfOfNulls = df[df['trip_type'].isnull()]
     df = df.dropna()
@@ -238,4 +235,7 @@ def GetMissingTripType(df):
     dfOfNulls = dfOfNulls[dfOfNulls['days_number'].isna() == False]
     dfOfNulls['trip_type'] = treecls.predict(dfOfNulls[['trv_type', 'room_type', 'days_number']])
 
-    return dfOfNulls
+    data = dfOfNulls.dropna()
+    data = pd.concat([data, dfOfNulls], axis=0)
+
+    return data

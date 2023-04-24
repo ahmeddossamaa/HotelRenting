@@ -13,9 +13,7 @@ def encode(x, encoder, testing=False, label=True):
     return en if label else pd.DataFrame(en.todense(), columns=encoder.get_feature_names())
 
 
-def labelEncoding(x, encoder=None):
-    if encoder is not None:
-        return encoder.fit_transform(x)
+def labelEncoding(x):
     encoder = LabelEncoder()
     return encoder, encoder.fit_transform(x)
 
@@ -56,7 +54,7 @@ def featureScalingScikit(df):
 
 # splitting dataset into train, valid, test
 def split(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=40)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0, shuffle=False)
     X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.50, shuffle=True)
     return X_train, X_test, X_val, y_train, y_test, y_val
 

@@ -40,12 +40,10 @@ from src.Preprocessing import GetMissingTripType
 # print(pickleOpen("encoders")['trv_type'].transform(X_test['trv_type']))
 
 data = open_file("columns-processing-v1.csv")
-# data = data.iloc[:, 2:]
-# d = GetMissingTripType(data)
-# data = data.dropna()
-# data = pd.concat([data, d], axis=0)
-#
-# save(data, "hotel-dataset-processed", CURRENT_VERSION)
+data = data.iloc[:, 2:]
+d = GetMissingTripType(data)
+
+save(data, "hotel-dataset-processed", CURRENT_VERSION)
 # data.to_csv("proccesed_col-v1.csv")
 
 # data = enc
