@@ -13,6 +13,41 @@ def encode(x, encoder, testing=False, label=True):
     return en if label else pd.DataFrame(en.todense(), columns=encoder.get_feature_names())
 
 
+def one_hot_encode(data, cols):
+    """
+    One-hot encode columns in a pandas DataFrame.
+
+    Args:
+        data (pd.DataFrame): The DataFrame to encode.
+        cols (list): A list of column names to one-hot encode.
+
+    Returns:
+        A new DataFrame with the one-hot encoded columns.
+    """
+    # Create a OneHotEncoder object
+    encoder = OneHotEncoder(handle_unknown='ignore')
+
+    # Fit the encoder on the specified columns
+    encoder.fit(data[cols])
+
+    # Transform the columns into a one-hot encoded array
+    encoded_array = encoder.transform(data[cols]).toarray()
+
+    # Create column names for the one-hot encoded columns
+    # column_names = [f"{col}{category}" for col in cols for category in encoder.categories_[col]]
+
+    # Create a new DataFrame with the one-hot encoded columns
+    encoded_df = pd.DataFrame(encoded_array)
+
+    # Concatenate the one-hot encoded DataFrame with the original DataFrame
+    data = pd.concat([data, encoded_df], axis=1)
+
+    # Drop the original columns
+    data = data.drop(cols, axis=1)
+
+    return data
+
+
 def labelEncoding(x):
     encoder = LabelEncoder()
     return encoder, encoder.fit_transform(x)

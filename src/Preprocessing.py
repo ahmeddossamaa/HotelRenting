@@ -10,7 +10,7 @@ from src.Model import TreeClassifier
 from sklearn.metrics import accuracy_score
 from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN, CURRENT_VERSION
 from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
-    pickleStore, open_file, pickleOpen, encode
+    pickleStore, open_file, pickleOpen, encode, one_hot_encode
 
 """def fix_date(x):
     for i in range(len(x)):
@@ -114,7 +114,7 @@ def processNewColumns(data):
 
 def encodeAndScaleColumns(data, isTesting):
     if isTesting:
-        data.dropna(inplace=True)
+        data = data.dropna()
 
     cols = {
         'trip_type': {
@@ -162,15 +162,16 @@ def encodeAndScaleColumns(data, isTesting):
 
                 data[i] = encode(data[[i]], encoder, testing=isTesting)
             elif cols[i]['oneHot']:
-                encoder = OneHotEncoder()
-
-                x = encode(data[[i]], encoder, label=False)
-                data = data.drop([i], axis=1)
-
-                # data = pd.concat([data, x], axis=0)
-
-                for j in x:
-                    data[j] = x.loc[:, j]
+                data = one_hot_encode(data, [i])
+                # encoder = OneHotEncoder()
+                #
+                # x = encode(data[[i]], encoder, label=False)
+                # data = data.drop([i], axis=1)
+                #
+                # # data = pd.concat([data, x], axis=0)
+                #
+                # for j in x:
+                #     data[j] = x.loc[:, j]
 
             if encoder is not None:
                 encoders[i] = encoder

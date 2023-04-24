@@ -19,6 +19,10 @@ def main_v2():
 
     data = open_file("processed-columns-v1.csv")
 
+    data = data.drop_duplicates()
+
+    data = data.reset_index(drop=True)
+
     X = data.loc[:, data.columns != TARGET_COLUMN]
     y = data[TARGET_COLUMN]
 
