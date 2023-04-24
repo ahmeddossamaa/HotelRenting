@@ -3,33 +3,73 @@ import pandas as pd
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
 from Preprocessing import process_tags_column, processLongLat, preprocessing
-from config.constants import TARGET_COLUMN
+from config.constants import TARGET_COLUMN, CURRENT_VERSION
 from src.FeatureSelection import pearson
-from src.Helpers import save, open_file
-from src.Model import treeRegression
+from src.Helpers import save, open_file, split
+from src.Model import treeModel
 
-data = open_file("Hotel_Renting_v4.csv")
+data = open_file("hotel-dataset-processed-v1.csv")
+
+
+def main_v2():
+    print("--------------------------------------- Splitting Phase Start ---------------------------------------")
+    data.drop_duplicates(inplace=True)
+
+    X = data.loc[:, data.columns != TARGET_COLUMN]
+    y = data[TARGET_COLUMN]
+
+    xtr, xts, xv, ytr, yts, yv = split(X, y)
+
+    dftr = pd.concat([xtr, ytr], axis=1)
+    dfts = pd.concat([xts, yts], axis=1)
+    dfv = pd.concat([xv, yv], axis=1)
+
+    save(dftr, "dftr", CURRENT_VERSION)
+    save(dfts, "dfts", CURRENT_VERSION)
+    save(dfv, "dfv", CURRENT_VERSION)
+
+    print("--------------------------------------- Preprocessing Phase Start ---------------------------------------")
+    dftr = preprocessing(dftr)
+    dfts = preprocessing(dfts, True)
+    dfv = preprocessing(dfv, True)
+
+    print("--------------------------------------- Feature Selection Phase Start ---------------------------------------")
+    f = pearson(dftr, 0.025)
+
+    dftr = dftr[f]
+    dfts = dfts[f]
+    dfv = dfv[f]
+
+    save(dftr, "dftr-f", CURRENT_VERSION)
+    save(dfts, "dfts-f", CURRENT_VERSION)
+    save(dfv, "dfv-f", CURRENT_VERSION)
+
+    print("--------------------------------------- Training Phase Start ---------------------------------------")
+    # Models for regression can be found in Model.py
+    print("--------------------------------------- Testing Phase Start ---------------------------------------")
+    # You can use pickleStore and pickleOpen from Helpers.py to save your progress
 
 
 def main():
+    print("--------------------------------------- Training Phase Start ---------------------------------------")
     X = data.loc[:, data.columns != TARGET_COLUMN]
     y = data[TARGET_COLUMN]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
 
-    # df_training = pd.concat([X_train, y_train], axis=1)
+    df_training = pd.concat([X_train, y_train], axis=1)
 
-    # df_training = preprocessing(df_training)
+    df_training = preprocessing(df_training)
 
     # df_training = open_file("columns-scaled-v1.csv")
 
     #########################################################################################
+    print("--------------------------------------- Testing Phase Start ---------------------------------------")
+    f = pearson(df_training, 0.025)
 
-    # f = pearson(df_training, 0.025)
+    save(df_training[f], "main-training", 1)
 
-    # save(df_training[f], "main-training", 1)
-
-    # print(df_training[f])
+    print(df_training[f])
 
     df_testing = pd.concat([X_test, y_test], axis=1)
 
@@ -43,7 +83,7 @@ def main():
     X = df_training.loc[:, df_training.columns != TARGET_COLUMN]
     y = df_training[TARGET_COLUMN]
 
-    model = treeRegression(X, y)
+    model = treeModel(X, y)
     prediction = model.predict(X_test, y_test)
 
     mse = metrics.mean_squared_error(np.asarray(y_test), prediction)
@@ -53,4 +93,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_v2()

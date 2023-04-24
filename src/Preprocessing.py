@@ -1,10 +1,16 @@
 import re
 import datetime as dt
 import pandas as pd
+from sklearn.model_selection import train_test_split
 import concurrent.futures
-from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN
+
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+
+from src.Model import TreeClassifier
+from sklearn.metrics import accuracy_score
+from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN, CURRENT_VERSION
 from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
-    pickleStore, open_file, pickleOpen
+    pickleStore, open_file, pickleOpen, encode
 
 """def fix_date(x):
     for i in range(len(x)):
@@ -72,7 +78,7 @@ def processLongLat(a):
 
 
 def processNewColumns(data):
-    return open_file("columns-processing-v1.csv")
+    # return open_file("processed_trip_type-v1.csv")
     dateCols = ['review_day', 'review_month', 'review_year']
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
@@ -94,10 +100,12 @@ def processNewColumns(data):
 
         # Drop Columns
         print("Dropping Redundant Columns...")
-        data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
+        data.drop(
+            ["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", TAGS_COLUMN, DATE_COLUMN],
+            axis=1, inplace=True)
         print("Redundant Columns Dropped!")
 
-        save(data, "columns-processing", 1)
+        save(data, "processed-columns", CURRENT_VERSION)
     except Exception as e:
         print("Error while processing in processNewColumns:", e)
 
@@ -139,64 +147,95 @@ def encodeAndScaleColumns(data, isTesting):
     try:
         encoders = dict()
         print("Encoding Columns...")
+        # print(data)
         if isTesting:
             encoders = pickleOpen("encoders")
         for i in cols:
-            encoder = ''
-            if cols[i]['label']:
-                if encoders[i] is not None:
-                    data[i] = labelEncoding(data[i], encoders[i])
-                else:
-                    encoder, data[i] = labelEncoding(data[i])
-            elif cols[i]['oneHot']:
-                if encoders[i] is not None:
-                    x = oneHotEncoding(data[[i]], encoders[i])
-                else:
-                    encoder, x = oneHotEncoding(data[[i]])
-                data.drop([i], axis=1, inplace=True)
-                data = pd.concat([data, x], axis=1)
+            encoder = encoders[i] if i in encoders.keys() else None
+            # print(f"encoder={encoder}")
 
-            if encoder != '':
+            if cols[i]['label']:
+                if encoder is None:
+                    # print(f"encoder={encoder}")
+                    encoder = LabelEncoder()
+                    print(f"encoder={encoder}")
+                    # print(f"-----------------")
+
+                data[i] = encode(data[i], encoder, testing=isTesting)
+                # print(f"data[{i}]", data[i])
+            elif cols[i]['oneHot']:
+                if encoder is None:
+                    encoder = OneHotEncoder()
+
+                x = encode(data[[i]], encoder, testing=isTesting, label=False)
+                # print(x)
+                data = data.drop([i], axis=1)
+                for j in x:
+                    # print(j, "x = ", x[j])
+                    data[j] = x[j]
+                # print(data)
+                # data = pd.concat([data, x], axis=1).drop_duplicates().reset_index(drop=True)
+                # print(data)
+                # print("---------------")
+
+            if encoder is not None:
                 encoders[i] = encoder
         print("Columns Encoded!")
-
-        save(data, "columns-encoded", 1)
+        # print(data)
+        save(data, "encoded-columns", CURRENT_VERSION)
 
         if not isTesting:
             print("Storing Encoders...")
             pickleStore(encoders, "encoders")
             print("Encoders Stored!")
-
+        # return data
         print("Scaling Columns...")
         for i in data:
             data[i] = featureScaling(data[i])
         print("Columns Scaled!")
 
-        save(data, "columns-scaled", 1)
+        save(data, "scaled-columns", CURRENT_VERSION)
     except Exception as e:
         print("Error while processing in encodeAndScaleColumns:", e)
 
-    print(data)
+    # print(data)
 
     return data
 
 
 def preprocessing(data, isTesting=False):
-    data.drop_duplicates()
+    # data = processNewColumns(data)
+    data = encodeAndScaleColumns(data, isTesting)
 
-    # def encode_column(column):
-    #     if column not in data.keys():
-    #         return pd.Series(dtype='float64')
-    #     return featureScaling(labelEncoding(data[column]).astype('float64'))
-    #
-    # try:
-    #     print("Encoding Columns...")
-    #     with concurrent.futures.ThreadPoolExecutor() as executor:
-    #         results = list(executor.map(encode_column, data.keys()))
-    #     for i, column in enumerate(data.keys()):
-    #         df[column] = results[i]
-    #     print("Columns Encoded!")
-    # except Exception as e:
-    #     print("Error While Processing: ", e)
+    return data
 
-    return encodeAndScaleColumns(processNewColumns(data), isTesting)
+
+def GetMissingTripType(df):
+    # get the dataset
+
+    # labelenconding
+    encoder, df.loc[:, 'trv_type'] = labelEncoding(df.loc[:, 'trv_type'])
+    encoder, df.loc[:, 'room_type'] = labelEncoding(df.loc[:, 'room_type', ])
+    # df[['trv_type', 'room_type', 'days_number']] = featureScalingScikit(df[['trv_type', 'room_type', 'days_number']])
+    dfOfNulls = df[df['trip_type'].isnull()]
+    df = df.dropna()
+    # encoder, df.loc[:, 'trip_type'] = labelEncoding(df.loc[:, 'trip_type'])
+    ##
+
+    X = df[['trv_type', 'room_type', 'days_number']]
+
+    y = df['trip_type']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+
+    treecls = TreeClassifier(X_train, y_train)
+    y_pred = treecls.predict(X_test)
+
+    accuracy = accuracy_score(y_test, y_pred)
+    print(accuracy)
+
+    # there's nulls in days numbers!
+    dfOfNulls = dfOfNulls[dfOfNulls['days_number'].isna() == False]
+    dfOfNulls['trip_type'] = treecls.predict(dfOfNulls[['trv_type', 'room_type', 'days_number']])
+
+    return dfOfNulls

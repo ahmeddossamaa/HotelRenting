@@ -4,6 +4,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from sklearn.feature_selection import SelectKBest, f_classif
 from config.constants import TARGET_COLUMN
+from sklearn.linear_model import Ridge
 
 
 def anova(x, y, k):
@@ -24,14 +25,16 @@ def categToNumerical(data, l):
     return p_value, new
 
 
-def pearson(d, l):
+def pearson(d, l, withMap=False):
     corr = d.corr()
-    # plt.subplots(figsize=(12, 8))
-    # sns.heatmap(corr, annot=True)
-    # plt.show()
+    if withMap:
+        plt.subplots(figsize=(12, 8))
+        sns.heatmap(corr, annot=True)
+        plt.show()
     return corr.index[abs(corr[TARGET_COLUMN]) > l]
 
 
+# dimensions reductions (to)
 """
 def NumericalCorrelation(data):
 
