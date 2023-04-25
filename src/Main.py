@@ -2,54 +2,16 @@ import numpy as np
 import pandas as pd
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
-from Preprocessing import process_tags_column, processLongLat, preprocessing, processNewColumns, GetMissingTripType
+from Preprocessing import preprocessing
 from config.constants import TARGET_COLUMN, CURRENT_VERSION
 from src.FeatureSelection import pearson
-from src.Helpers import save, open_file, split
+from src.Helpers import save, open_file
 from src.Model import treeModel
 
 
-def main_v2():
+def main():
     print("--------------------------------------- Splitting Phase Start ---------------------------------------")
-    # data = open_file("Hotel_Renting_v4.csv")
-    #
-    # data = data.drop_duplicates()
-    #
-    # data = processNewColumns(data)
-
-    data = open_file("processed-columns-v1.csv")
-
-    data = data.drop_duplicates()
-
-    data = data.reset_index(drop=True)
-
-    X = data.loc[:, data.columns != TARGET_COLUMN]
-    y = data[TARGET_COLUMN]
-
-    xtr, xts, xv, ytr, yts, yv = split(X, y)
-
-    # data = open_file("hotel-dataset-processed-v1.csv")
-
-    # xtr = data.loc[:, data.columns != TARGET_COLUMN]
-    # ytr = data[TARGET_COLUMN]
-    # print(data)
-    # print(xtr)
-    # print(xts)
-
-    dftr = pd.concat([xtr, ytr], axis=1)
-    dfts = pd.concat([xts, yts], axis=1)
-    dfv = pd.concat([xv, yv], axis=1)
-
-    dftr = GetMissingTripType(dftr)
-
-    print("--------------------------------------- Preprocessing Phase Start ---------------------------------------")
-    dftr = preprocessing(dftr)
-    dfts = preprocessing(dfts, True)
-    dfv = preprocessing(dfv, True)
-
-    save(dftr, "dftr", CURRENT_VERSION)
-    save(dfts, "dfts", CURRENT_VERSION)
-    save(dfv, "dfv", CURRENT_VERSION)
+    dftr, dfts, dfv = preprocessing()
 
     print("--------------------------------------- Feature Selection Phase Start ---------------------------------------")
     f = pearson(dftr, 0.025)
@@ -68,7 +30,7 @@ def main_v2():
     # You can use pickleStore and pickleOpen from Helpers.py to save your progress
 
 
-def main():
+def main_old():
     print("--------------------------------------- Training Phase Start ---------------------------------------")
     data = open_file("Hotel_Renting_v4.csv")
 
@@ -113,4 +75,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main_v2()
+    main()
