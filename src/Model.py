@@ -6,7 +6,7 @@ from src.Helpers import labelEncoding, open_file
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.linear_model import LinearRegression
-
+from sklearn import metrics
 
 def treeModel(X, y):
     model = tree.DecisionTreeRegressor()
@@ -72,3 +72,18 @@ def TreeClassifier(X, Y):
     clf = DecisionTreeClassifier(random_state=42, max_depth=8, min_samples_split=15)
     clf.fit(X, Y)
     return clf
+def train_model(X_train, y_train, model_name):
+    if model_name == 'linear':
+        model = LinearModel(X_train, y_train)
+    elif model_name == 'random_forest':
+        model = RandomForestModel(X_train, y_train)
+    elif model_name == 'svr':
+        model = SVRModel(X_train, y_train)
+    else:
+        raise ValueError(f"Invalid model name: {model_name}")
+    return model
+def evaluate_model(model, X_test, y_test):
+    y_pred = model.predict(X_test)
+    mse = metrics.mean_squared_error(y_test, y_pred)
+    accuracy = model.score(X_test, y_test)
+    return mse, accuracy
