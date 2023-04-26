@@ -205,24 +205,25 @@ def preprocessing():
     X = data.loc[:, data.columns != TARGET_COLUMN]
     y = data[TARGET_COLUMN]
 
-    xtr, xts, xv, ytr, yts, yv = split(X, y)
+    xtr, xts, ytr, yts = split(X, y)
 
     dftr = pd.concat([xtr, ytr], axis=1)
     dfts = pd.concat([xts, yts], axis=1)
-    dfv = pd.concat([xv, yv], axis=1)
 
+    print(f"------------------------------------------------")
+    print(f"len(dftr)={len(dftr)}")
     dftr = GetMissingTripType(dftr)
+    print(f"len(dftr)={len(dftr)}")
+    print(f"------------------------------------------------")
 
     print("--------------------------------------- Preprocessing Phase Start ---------------------------------------")
     dftr = encodeAndScaleColumns(dftr, False)
     dfts = encodeAndScaleColumns(dfts, True)
-    dfv = encodeAndScaleColumns(dfv, True)
 
     save(dftr, "dftr", CURRENT_VERSION)
     save(dfts, "dfts", CURRENT_VERSION)
-    save(dfv, "dfv", CURRENT_VERSION)
 
-    return dftr, dfts, dfv
+    return dftr, dfts
 
 
 def GetMissingTripType(df):
@@ -255,12 +256,34 @@ def GetMissingTripType(df):
     dfOfNulls = dfOfNulls[dfOfNulls['days_number'].isna() == False]
     dfOfNulls['trip_type'] = treecls.predict(dfOfNulls[['trv_type', 'room_type', 'days_number']])
 
-    data = dfOfNulls.dropna()
-    data = pd.concat([data, dfOfNulls], axis=0)
+    dfOfNulls = dfOfNulls.dropna()
+    data = pd.concat([df, dfOfNulls], axis=0)
 
     data.loc[:, 'trv_type'] = encoder.inverse_transform(data.loc[:, 'trv_type'])
     data.loc[:, 'room_type'] = encoder2.inverse_transform(data.loc[:, 'room_type'])
 
     # save(data, "logistic-resultl", 1)
+
+    return data
+
+
+def getCityAndCountry(data):
+    return data
+
+
+def testingPhasePreprocessing(data):
+    data = data.drop_duplicates()
+
+    data = data.dropna()
+
+    data = getCityAndCountry(data)
+
+    data = processNewColumns(data)
+
+    data = encodeAndScaleColumns(data, True)
+
+    f = pickleOpen("features")
+
+    data = data[f]
 
     return data

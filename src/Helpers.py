@@ -5,9 +5,13 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from requests.structures import CaseInsensitiveDict
 from sklearn.model_selection import train_test_split
-
+# from flashgeotext.geotext import GeoText, GeoTextConfiguration
+# from flashgeotext.lookup import LookupData
 
 # Encoding
+from config.constants import cities_dict
+
+
 def encode(x, encoder, testing=False, label=True):
     en = encoder.transform(x) if testing else encoder.fit_transform(x)
     return en if label else pd.DataFrame(en.todense(), columns=encoder.get_feature_names())
@@ -89,9 +93,9 @@ def featureScalingScikit(df):
 
 # splitting dataset into train, valid, test
 def split(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0, shuffle=False)
-    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.50, shuffle=True)
-    return X_train, X_test, X_val, y_train, y_test, y_val
+    return train_test_split(X, y, test_size=0.4, random_state=0, shuffle=False)
+    # X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.50, shuffle=True)
+    # return X_train, X_test, X_val, y_train, y_test, y_val
 
 
 ##
@@ -129,7 +133,27 @@ def pickleOpen(name):
         print(f"Error fetching {name}: {e}")
 
 
-##
+# def getCity(a):
+#     lookup_districts = LookupData(
+#         name="city",
+#         data=cities_dict)
+#
+#     config = GeoTextConfiguration(**{"use_demo_data": False})
+#     geotext = GeoText(config)
+#     geotext.add(lookup_districts)
+#
+#     out = geotext.extract(a['Hotel_Address'], span_info=True)
+#
+#     print(out)
+#     return list(out['city'].keys())[-1] if out is not None else None
+#
+#
+# def getCountry(a):
+#     geotext = GeoText()
+#
+#     out = geotext.extract(a['Hotel_Address'], span_info=True)
+#
+#     return list(out['countries'].keys())[-1]
 
 
 def binarySearch(arr, x):

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from config.constants import CURRENT_VERSION
+from config.constants import CURRENT_VERSION, ADDRESS_COLUMN
 from src.Helpers import save, open_file
 from src.Preprocessing import GetMissingTripType
 
@@ -39,14 +39,44 @@ from src.Preprocessing import GetMissingTripType
 # print([i for i in X_test])
 # print(pickleOpen("encoders")['trv_type'].transform(X_test['trv_type']))
 
-data = open_file("columns-processing-v1.csv")
-data = data.iloc[:, 2:]
-d = GetMissingTripType(data)
+# data = open_file("columns-processing-v1.csv")
+# data = data.iloc[:, 2:]
+# d = GetMissingTripType(data)
+#
+# save(data, "hotel-dataset-processed", CURRENT_VERSION)
 
-save(data, "hotel-dataset-processed", CURRENT_VERSION)
 # data.to_csv("proccesed_col-v1.csv")
 
 # data = enc
 # d = dict()
 # i = "test"
 # print(d[i] if i in d.keys() else "haha")
+
+# data = open_file("hotel-regression-dataset.csv")
+# print(f"res = {getCity(data[ADDRESS_COLUMN][0])}")
+
+import locationtagger
+
+data = open_file("hotel-regression-dataset.csv")
+text = data[ADDRESS_COLUMN][9]
+print(text)
+place_entity = locationtagger.find_locations(text=text)
+
+print(place_entity.countries)
+print(place_entity.cities)
+print(place_entity.regions)
+print(place_entity.region_cities)
+print(place_entity.other_regions)
+print(place_entity.other)
+
+
+# import nltk
+# import spacy
+#
+# # essential entity models downloads
+# nltk.downloader.download('maxent_ne_chunker')
+# nltk.downloader.download('words')
+# nltk.downloader.download('treebank')
+# nltk.downloader.download('maxent_treebank_pos_tagger')
+# nltk.downloader.download('punkt')
+# nltk.download('averaged_perceptron_tagger')
