@@ -1,20 +1,68 @@
+import re
+import pickle
 import requests
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from requests.structures import CaseInsensitiveDict
+from sklearn.model_selection import train_test_split
 
 
 # Encoding
-def labelEncoding(x, c):
-    lbl = LabelEncoder()
-    lbl.fit(list(x[c].values))
-    x[c] = lbl.transform(list(x[c].values))
-    return x
+def encode(x, encoder, testing=False, label=True):
+    en = encoder.transform(x) if testing else encoder.fit_transform(x)
+    return en if label else pd.DataFrame(en.todense(), columns=encoder.get_feature_names())
 
 
-def oneHotEncoding(x):
-    return x
+def one_hot_encode(data, cols):
+    """
+    One-hot encode columns in a pandas DataFrame.
 
+    Args:
+        data (pd.DataFrame): The DataFrame to encode.
+        cols (list): A list of column names to one-hot encode.
+
+    Returns:
+        A new DataFrame with the one-hot encoded columns.
+    """
+    # Create a OneHotEncoder object
+    encoder = OneHotEncoder(handle_unknown='ignore')
+
+    # Fit the encoder on the specified columns
+    encoder.fit(data[cols])
+
+    # Transform the columns into a one-hot encoded array
+    encoded_array = encoder.transform(data[cols]).toarray()
+
+    # Create column names for the one-hot encoded columns
+    # column_names = [f"{col}{category}" for col in cols for category in encoder.categories_[col]]
+
+    # Create a new DataFrame with the one-hot encoded columns
+    encoded_df = pd.DataFrame(encoded_array)
+
+    # Concatenate the one-hot encoded DataFrame with the original DataFrame
+    data = pd.concat([data, encoded_df], axis=1)
+
+    # Drop the original columns
+    data = data.drop(cols, axis=1)
+
+    return data
+
+
+def labelEncoding(x):
+    encoder = LabelEncoder()
+    return encoder, encoder.fit_transform(x)
+
+
+def oneHotEncoding(x, encoder=None):
+    if encoder is not None:
+        encoded = encoder.fit_transform(x)
+        return pd.DataFrame(encoded.todense(), columns=encoder.get_feature_names())
+    encoder = OneHotEncoder(handle_unknown='ignore')
+    encoded = encoder.fit_transform(x)
+    return encoder, pd.DataFrame(encoded.todense(), columns=encoder.get_feature_names())
+
+
+##
 
 # Scaling
 def featureScaling(x):
@@ -23,17 +71,65 @@ def featureScaling(x):
     if mini == maxi:
         return x
 
-    x.iloc[:] = (x.iloc[:] - mini) / (maxi - mini)
+    x = (x - mini) / (maxi - mini)
 
     return x
 
 
-def save(data, fileName):
-    data.to_csv(f"../input/{fileName}")
+def featureScalingScikit(df):
+    scaler = StandardScaler()
+
+    # Scale the featuress
+    X_scaled = scaler.fit_transform(df)
+    scaled = pd.DataFrame(X_scaled, columns=df.columns)
+    return scaled
 
 
-def open_file(fileName):
-    return pd.read_csv(f"../input/{fileName}")
+##
+
+# splitting dataset into train, valid, test
+def split(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0, shuffle=False)
+    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.50, shuffle=True)
+    return X_train, X_test, X_val, y_train, y_test, y_val
+
+
+##
+
+# Save and Open CSV files
+def save(data, fileName, v, f='csv'):
+    try:
+        data.to_csv(f"../input/{fileName}-v{v}.{f}", index=False)
+        print(f"Last version is {v}")
+    except:
+        save(data, fileName, v + 1, f)
+
+
+def open_file(fileName, path="../input/"):
+    return pd.read_csv(f"{path}{fileName}")
+
+
+##
+
+# Save & Open ml objects
+def pickleStore(data, name):
+    try:
+        with open(f'../models/{name}.pkl', 'wb') as f:
+            pickle.dump(data, f)
+        print(f"{name} saved in models")
+    except Exception as e:
+        print(f"{name} couldn't be saved: {e}")
+
+
+def pickleOpen(name):
+    try:
+        with open(f'../models/{name}.pkl', 'rb') as f:
+            return pickle.load(f)
+    except Exception as e:
+        print(f"Error fetching {name}: {e}")
+
+
+##
 
 
 def binarySearch(arr, x):
@@ -69,3 +165,8 @@ def geoCoding(text):
     resp = requests.get(url, headers=headers)
 
     return resp.json()
+
+
+def extractNumberFromString(text):
+    res = re.search('[0-9]+', text)
+    return res.group() if res else None

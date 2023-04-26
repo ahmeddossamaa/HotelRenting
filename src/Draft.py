@@ -1,8 +1,11 @@
-import re
-
 import pandas as pd
-import requests
-from src.Helpers import binarySearch, save, open_file
+
+from config.constants import CURRENT_VERSION
+from src.Helpers import save, open_file
+from src.Preprocessing import GetMissingTripType
+
+# from config.constants import TAGS_COLUMN, ADDRESS_COLUMN, TARGET_COLUMN
+# from src.Helpers import binarySearch, save, open_file, featureScaling, pickleOpen
 
 # URL = "https://countriesnow.space/api/v0.1/countries"
 #
@@ -18,36 +21,32 @@ from src.Helpers import binarySearch, save, open_file
 # for i in df['country']:
 #     print(i)
 
-countries = open_file("countries-cities.csv")
-data = open_file("hotel-regression-dataset.csv")
+# countries = open_file("countries-cities.csv")
 
-d = data['Hotel_Address'][0]
+# from src.Preprocessing import preprocessing
 
-# d = d[len(d)/2:]
-
-# counter = 0
-# for j in range(len(countries['country'])):
-#     r = countries['country'][j].lower() in d.lower()
-#     counter += 1
-#     if r:
-#         print(countries['country'][j].lower())
-#         break
+# data = open_file("Hotel_Renting_v4.csv")
+# data = open_file("Hotel_Renting_v4.csv")
 #
-# print(counter)
+# X = data.loc[:, data.columns != TARGET_COLUM"N]
+# y = data[TARGET_COLUMN]
+#
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
+# #
+# df_training = pd.concat([X_test, y_test], axis=1)
+# #
+# df_training = preprocessing(df_training)
+# print([i for i in X_test])
+# print(pickleOpen("encoders")['trv_type'].transform(X_test['trv_type']))
 
-errors = dict()
-count = dict()
+data = open_file("columns-processing-v1.csv")
+data = data.iloc[:, 2:]
+d = GetMissingTripType(data)
 
-for i in range(len(data['Hotel_Address'])):
-    for j in countries['country']:
-        s = j.lower()
-        if s in data['Hotel_Address'][i].lower():
-            if s not in count.keys():
-                count[s] = 1
-            else:
-                count[s] += 1
-        else:
-            errors[i] = data['Hotel_Address'][i].lower()
+save(data, "hotel-dataset-processed", CURRENT_VERSION)
+# data.to_csv("proccesed_col-v1.csv")
 
-print(count)
-print(errors)
+# data = enc
+# d = dict()
+# i = "test"
+# print(d[i] if i in d.keys() else "haha")
