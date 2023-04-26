@@ -80,14 +80,16 @@ import pickle
 
 from sklearn import metrics
 
-from config.constants import TARGET_COLUMN
+from config.constants import TARGET_COLUMN, CURRENT_VERSION
+from src.Helpers import pickleOpen, save
+
 
 class CsvModelTester:
     def __init__(self, master):
         self.master = master
         master.title("CSV Model Tester")
 
-        # Create UI elements with colorful styles
+        master.geometry("640x640")
         self.file_label = tk.Label(master, text="No file selected", fg="white", bg="#3c3f41", font=("Arial", 12))
         self.file_label.pack(pady=10)
 
@@ -103,7 +105,7 @@ class CsvModelTester:
         self.model_1_radio = tk.Radiobutton(master, text="RandomForest", variable=self.model_var, value="RandomForest", fg="white", bg="#3c3f41", font=("Arial", 12), selectcolor="#0072C6")
         self.model_1_radio.pack()
 
-        self.model_2_radio = tk.Radiobutton(master, text="LinearModel", variable=self.model_var, value="LinearModel", fg="white", bg="#3c3f41", font=("Arial", 12), selectcolor="#0072C6")
+        self.model_2_radio = tk.Radiobutton(master, text="multiLinear", variable=self.model_var, value="multiLinear", fg="white", bg="#3c3f41", font=("Arial", 12), selectcolor="#0072C6")
         self.model_2_radio.pack()
 
         self.mse_label = tk.Label(master, text="", fg="white", bg="#3c3f41", font=("Arial", 12))
@@ -123,26 +125,35 @@ class CsvModelTester:
         self.file_label.config(text=file_path)
         self.data = pd.read_csv(file_path)
 
+
+
     def evaluate_model(self, model, X_test, y_test):
+        print(model)
         y_pred = model.predict(X_test)
         mse = metrics.mean_squared_error(y_test, y_pred)
         accuracy = model.score(X_test, y_test)
         return mse, accuracy
-
     def test_model(self):
         # Load the selected model
         if self.model_var.get() == "RandomForest":
-            with open("C:/Users/GH/Documents/HotelRenting/models/RandomForest.pkl", "rb") as f:
-                model = pickle.load(f)
+            model=pickleOpen("randomForest")
+            print(model)
         else:
-            with open("C:/Users/GH/Documents/HotelRenting/models/LinearM.pkl", "rb") as f:
-                model = pickle.load(f)
+            model=pickleOpen("multiLinear")
+        f=pickleOpen("features")
+        self.data=self.data[f]
+        if TARGET_COLUMN in self.data.columns:
 
-        X_test = self.data.loc[:, self.data.columns != TARGET_COLUMN]
-        y_test = self.data[TARGET_COLUMN]
-        mse, accuracy = self.evaluate_model(model, X_test, y_test)
-        self.mse_label.config(text=f"MSE: {mse:.4f}")
-        self.accuracy_label.config(text=f"Accuracy: {accuracy:.4f}")
+            X_test = self.data.loc[:, self.data.columns != TARGET_COLUMN]
+            y_test = self.data[TARGET_COLUMN]
+            mse, accuracy = self.evaluate_model(model, X_test, y_test)
+            self.mse_label.config(text=f"MSE: {mse:.4f}")
+            self.accuracy_label.config(text=f"Accuracy: {accuracy:.4f}")
+        else:
+            X_test = self.data
+            y_predect =model.predict(X_test)
+            save(y_predect,"y_predect",CURRENT_VERSION)
+
 
 
 

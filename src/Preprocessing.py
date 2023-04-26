@@ -195,6 +195,8 @@ def encodeAndScaleColumns(data, isTesting):
     return data
 
 
+
+
 def preprocessing():
     data = open_file("processed-columns-v1.csv")
 
@@ -262,5 +264,27 @@ def GetMissingTripType(df):
     data.loc[:, 'room_type'] = encoder2.inverse_transform(data.loc[:, 'room_type'])
 
     # save(data, "logistic-resultl", 1)
+
+    return data
+
+
+def getCityAndCountry(data):
+    return data
+
+
+def testingPhasePreprocessing(data):
+    data = data.drop_duplicates()
+
+    data = data.dropna()
+
+    data = getCityAndCountry(data)
+
+    data = processNewColumns(data)
+
+    data = encodeAndScaleColumns(data, True)
+
+    f = pickleOpen("features")
+
+    data = data[f]
 
     return data
