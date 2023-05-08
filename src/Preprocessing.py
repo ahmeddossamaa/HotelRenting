@@ -1,18 +1,15 @@
 import re
-import datetime as dt
-
 import numpy as np
 import pandas as pd
+from flashgeotext.geotext import GeoText
 from sklearn.model_selection import train_test_split
-import concurrent.futures
-
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, OrdinalEncoder
-
+from sklearn.preprocessing import LabelEncoder
 from src.Model import TreeClassifier
 from sklearn.metrics import accuracy_score
-from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN, CURRENT_VERSION, TARGET_COLUMN
-from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
-    pickleStore, open_file, pickleOpen, encode, one_hot_encode, split
+from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN, CURRENT_VERSION, TARGET_COLUMN, ENCODE_COLS
+from src.Helpers import geoCoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
+    pickleStore, open_file, pickleOpen, encode, split, GetCity, GetCountry, initcitiesDict
+from concurrent.futures import ThreadPoolExecutor
 
 """def fix_date(x):
     for i in range(len(x)):
@@ -85,6 +82,9 @@ def processNewColumns(data):
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
     try:
+        geotextCity = initcitiesDict()
+        geotextCountry = GeoText()
+
         # Tags
         print("Processing Tags...")
         data[tagsCols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
@@ -99,6 +99,16 @@ def processNewColumns(data):
         print("Processing Days Since Review...")
         data["days_since_review"] = data["days_since_review"].apply(extractNumberFromString).apply(pd.Series)
         print("Days Since Review Processed!")
+
+        # Days Since
+        print("Processing Hotel_City...")
+        data['Hotel_City'] = data.apply(lambda x : GetCity(x, geotextCity), axis=1)
+        print("Hotel_City Processed!")
+
+        # Days Since
+        print("Processing Hotel_Country...")
+        data['Hotel_Country'] = data.apply(lambda x: GetCountry(x, geotextCountry), axis=1)
+        print("Hotel_Country Processed!")
 
         # Drop Columns
         print("Dropping Redundant Columns...")
@@ -115,44 +125,16 @@ def processNewColumns(data):
 
 
 def encodeAndScaleColumns(data, isTesting):
+    cols = ENCODE_COLS
+
     if isTesting:
         data = data.dropna()
-
-    cols = {
-        'trip_type': {
-            'label': False,
-            'oneHot': True,
-        },
-        'trv_type': {
-            'label': True,
-            'oneHot': False,
-        },
-        'room_type': {
-            'label': True,
-            'oneHot': False,
-        },
-        'Hotel_Name': {
-            'label': True,
-            'oneHot': False,
-        },
-        'Reviewer_Nationality': {
-            'label': True,
-            'oneHot': False,
-        },
-        'Hotel_Country': {
-            'label': False,
-            'oneHot': True,
-        },
-        'Hotel_City': {
-            'label': False,
-            'oneHot': True,
-        },
-    }
 
     try:
         encoders = dict()
         print("Encoding Columns...")
         # print(data)
+
         if isTesting:
             encoders = pickleOpen("encoders")
         for i in cols:
@@ -199,6 +181,7 @@ def preprocessing():
     data = open_file("processed-columns-v1.csv")
 
     data = data.drop_duplicates()
+    data = data.dropna()
 
     data = data.reset_index(drop=True)
 
@@ -268,6 +251,8 @@ def GetMissingTripType(df):
 
 
 def getCityAndCountry(data):
+    data['Hotel_City'] = data.apply(GetCity, axis=1)
+    data['Hotel_Country'] = data.apply(GetCountry, axis=1)
     return data
 
 
@@ -276,14 +261,12 @@ def testingPhasePreprocessing(data):
 
     data = data.dropna()
 
-    data = getCityAndCountry(data)
-
     data = processNewColumns(data)
 
     data = encodeAndScaleColumns(data, True)
 
     f = pickleOpen("features")
-
+    print(data)
     data = data[f]
 
     return data

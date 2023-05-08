@@ -7,6 +7,37 @@ DATE_COLUMN = 'Review_Date'
 
 CURRENT_VERSION = 1
 
+ENCODE_COLS = {
+    'trip_type': {
+        'label': False,
+        'oneHot': True,
+    },
+    'trv_type': {
+        'label': True,
+        'oneHot': False,
+    },
+    'room_type': {
+        'label': True,
+        'oneHot': False,
+    },
+    'Hotel_Name': {
+        'label': True,
+        'oneHot': False,
+    },
+    'Reviewer_Nationality': {
+        'label': True,
+        'oneHot': False,
+    },
+    'Hotel_Country': {
+        'label': False,
+        'oneHot': True,
+    },
+    'Hotel_City': {
+        'label': False,
+        'oneHot': True,
+    },
+}
+
 cities_dict = {
     'London':[ 'London'],
     'Manchester': ['Manchester'],

@@ -80,8 +80,9 @@ import pickle
 
 from sklearn import metrics
 
-from config.constants import TARGET_COLUMN
-from src.Helpers import pickleOpen
+from config.constants import TARGET_COLUMN, CURRENT_VERSION
+from src.Helpers import pickleOpen, save
+from src.Preprocessing import testingPhasePreprocessing
 
 
 class CsvModelTester:
@@ -89,7 +90,7 @@ class CsvModelTester:
         self.master = master
         master.title("CSV Model Tester")
 
-        # Create UI elements with colorful styles
+        master.geometry("640x640")
         self.file_label = tk.Label(master, text="No file selected", fg="white", bg="#3c3f41", font=("Arial", 12))
         self.file_label.pack(pady=10)
 
@@ -107,7 +108,7 @@ class CsvModelTester:
                                             fg="white", bg="#3c3f41", font=("Arial", 12), selectcolor="#0072C6")
         self.model_1_radio.pack()
 
-        self.model_2_radio = tk.Radiobutton(master, text="LinearModel", variable=self.model_var, value="LinearModel",
+        self.model_2_radio = tk.Radiobutton(master, text="multiLinear", variable=self.model_var, value="multiLinear",
                                             fg="white", bg="#3c3f41", font=("Arial", 12), selectcolor="#0072C6")
         self.model_2_radio.pack()
 
@@ -134,20 +135,32 @@ class CsvModelTester:
         y_pred = model.predict(X_test)
         mse = metrics.mean_squared_error(y_test, y_pred)
         accuracy = model.score(X_test, y_test)
-        return mse, accuracy
+        return mse, accuracy, y_pred
 
     def test_model(self):
+        if self.data is None:
+            return
         # Load the selected model
         if self.model_var.get() == "RandomForest":
-            model = pickleOpen("RandomForest")
+            model = pickleOpen("randomForest")
         else:
-            model = pickleOpen("LinearM")
+            model = pickleOpen("LinearModel")
 
-        X_test = self.data.loc[:, self.data.columns != TARGET_COLUMN]
-        y_test = self.data[TARGET_COLUMN]
-        mse, accuracy = self.evaluate_model(model, X_test, y_test)
-        self.mse_label.config(text=f"MSE: {mse:.4f}")
-        self.accuracy_label.config(text=f"Accuracy: {accuracy:.4f}")
+        if model is None:
+            return
+
+        self.data = testingPhasePreprocessing(self.data)
+
+        if TARGET_COLUMN in self.data.columns:
+            X_test = self.data.loc[:, self.data.columns != TARGET_COLUMN]
+            y_test = self.data[TARGET_COLUMN]
+            mse, accuracy, y_predict = self.evaluate_model(model, X_test, y_test)
+            self.mse_label.config(text=f"MSE: {mse:.4f}")
+            self.accuracy_label.config(text=f"Accuracy: {accuracy:.4f}")
+        else:
+            X_test = self.data
+            y_predict = model.predict(X_test)
+        save(y_predict, "y_predect", CURRENT_VERSION)
 
 
 root = tk.Tk()
