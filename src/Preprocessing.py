@@ -10,9 +10,10 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder, OrdinalEncoder
 
 from src.Model import TreeClassifier
 from sklearn.metrics import accuracy_score
+from flashgeotext.geotext import GeoText
 from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN, CURRENT_VERSION, TARGET_COLUMN
 from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberFromString, oneHotEncoding, save, \
-    pickleStore, open_file, pickleOpen, encode, one_hot_encode, split
+    pickleStore, open_file, pickleOpen, encode, one_hot_encode, split, initcitiesDict, GetCity, GetCountry, getLatLng
 
 """def fix_date(x):
     for i in range(len(x)):
@@ -85,6 +86,7 @@ def processNewColumns(data):
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
     try:
+
         # Tags
         print("Processing Tags...")
         data[tagsCols] = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
@@ -100,10 +102,15 @@ def processNewColumns(data):
         data["days_since_review"] = data["days_since_review"].apply(extractNumberFromString).apply(pd.Series)
         print("Days Since Review Processed!")
 
+        # Getting City & Country
+        print("Processing City & Country...")
+        data = getCityAndCountry(data)
+        print("City & Country Processed!")
+
         # Drop Columns
         print("Dropping Redundant Columns...")
         data.drop(
-            ["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", TAGS_COLUMN, DATE_COLUMN],
+            ["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review","Hotel_Address", TAGS_COLUMN, DATE_COLUMN],
             axis=1, inplace=True)
         print("Redundant Columns Dropped!")
 
@@ -197,12 +204,20 @@ def encodeAndScaleColumns(data, isTesting):
 
 
 
-def preprocessing():
-    data = open_file("processed-columns-v1.csv")
+def preprocessing(data):
+  #  data = open_file("hotel-regression-dataset.csv")
 
     data = data.drop_duplicates()
-
     data = data.reset_index(drop=True)
+
+    if data['lng'].isna().sum() != 0:
+        print("filling lat & lng nulls...")
+        data = getLatLng(data)
+        save(data, "cls-nonulls", CURRENT_VERSION)
+        print("Done!")
+
+    data = processNewColumns(data)
+    data = encodeAndScaleColumns(data, False)
 
     X = data.loc[:, data.columns != TARGET_COLUMN]
     y = data[TARGET_COLUMN]
@@ -213,19 +228,20 @@ def preprocessing():
     dfts = pd.concat([xts, yts], axis=1)
     dfv = pd.concat([xv, yv], axis=1)
 
-    dftr = GetMissingTripType(dftr)
+
+   # dftr = GetMissingTripType(dftr)
+
 
     print("--------------------------------------- Preprocessing Phase Start ---------------------------------------")
-    dftr = encodeAndScaleColumns(dftr, False)
-    dfts = encodeAndScaleColumns(dfts, True)
-    dfv = encodeAndScaleColumns(dfv, True)
 
+    #dftr = encodeAndScaleColumns(dftr, False)
+    #dfts = encodeAndScaleColumns(dfts, True)
+    #dfv = encodeAndScaleColumns(dfv, True)
     save(dftr, "dftr", CURRENT_VERSION)
     save(dfts, "dfts", CURRENT_VERSION)
     save(dfv, "dfv", CURRENT_VERSION)
 
     return dftr, dfts, dfv
-
 
 def GetMissingTripType(df):
     # get the dataset
@@ -238,7 +254,8 @@ def GetMissingTripType(df):
     # df[['trv_type', 'room_type', 'days_number']] = featureScalingScikit(df[['trv_type', 'room_type', 'days_number']])
     dfOfNulls = df[df['trip_type'].isnull()]
     df = df.dropna()
-    # encoder, df.loc[:, 'trip_type'] = labelEncoding(df.loc[:, 'trip_type'])
+    encoder3 = LabelEncoder()
+    df.loc[:, 'trip_type'] = encode(df.loc[:, 'trip_type'], encoder3)
     ##
 
     X = df[['trv_type', 'room_type', 'days_number']]
@@ -269,8 +286,11 @@ def GetMissingTripType(df):
 
 
 def getCityAndCountry(data):
+    geotextCity = initcitiesDict()
+    geotextCountry = GeoText()
+    data['Hotel_City'] = data.apply(lambda x: GetCity(x, geotextCity), axis=1)
+    data['Hotel_Country'] = data.apply(lambda x: GetCountry(x, geotextCountry), axis=1)
     return data
-
 
 def testingPhasePreprocessing(data):
     data = data.drop_duplicates()

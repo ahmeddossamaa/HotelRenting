@@ -248,3 +248,7 @@ print(data['Hotel_City'].unique())
 # d = dict()
 # i = "test"
 # print(d[i] if i in d.keys() else "haha")
+
+
+
+# to handle test nulls -> check for each col? if that col isn't one of the selected drop col otherwise trytohandle!

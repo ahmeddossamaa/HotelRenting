@@ -3,8 +3,12 @@ import pickle
 import requests
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
+from flashgeotext.geotext import GeoText, GeoTextConfiguration
+from flashgeotext.lookup import LookupData
 from requests.structures import CaseInsensitiveDict
 from sklearn.model_selection import train_test_split
+from config.constants import TARGET_COLUMN, CURRENT_VERSION
+
 
 
 # Encoding
@@ -155,7 +159,7 @@ def binarySearch(arr, x):
     # If we reach here, then the element was not present
     return -1
 
-
+# fill lat & lng nulls
 def geoCoding(text):
     url = f"https://api.geoapify.com/v1/geocode/search?apiKey=8a8befb5cff9493fa7f326a514a8d555&text={text}"
 
@@ -163,9 +167,154 @@ def geoCoding(text):
     headers["Accept"] = "application/json"
 
     resp = requests.get(url, headers=headers)
+    #print(resp.json()["features"][0]["geometry"]["coordinates"])
+    coordinates = resp.json()["features"][0]["geometry"]["coordinates"]
+    return coordinates[0], coordinates[1]
 
-    return resp.json()
+def getLatLng(data):
+    d = data[data['lat'].isnull()]
+    for index, row in d.iterrows():
+        try:
+            data.loc[index, ['lat', 'lng']] = geoCoding(row['Hotel_Address'])
+        except Exception as e:
+            print(data.isna().sum())
+            print(f"stopped at - {index}, the error -> {e}")
 
+    save(data,"cls-complete", CURRENT_VERSION)
+    return data
+##
+
+# address preprocessing funs
+
+# to init the dictionary of the existing countries.
+def initcitiesDict():
+    cities_dict = {
+        'London': ['London'],
+        'Manchester': ['Manchester'],
+        'Birmingham': ['Birmingham'],
+        'Liverpool': ['Liverpool'],
+        'Leeds': ['Leeds'],
+        'Glasgow': ['Glasgow'],
+        'Edinburgh': ['Edinburgh'],
+        'Bristol': ['Bristol'],
+        'Newcastle upon Tyne': ['Newcastle upon Tyne'],
+        'Sheffield': ['Sheffield'],
+        'Nottingham': ['Nottingham'],
+        'Belfast': ['Belfast'],
+        'Southampton': ['Southampton'],
+        'Brighton and Hove': ['Brighton and Hove'],
+        'Cardiff': ['Cardiff'],
+        'Paris': ['Paris'],
+        'Marseille': ['Marseille'],
+        'Lyon': ['Lyon'],
+        'Toulouse': ['Toulouse'],
+        'Nice': ['Nice'],
+        'Nantes': ['Nantes'],
+        'Strasbourg': ['Strasbourg'],
+        'Montpellier': ['Montpellier'],
+        'Bordeaux': ['Bordeaux'],
+        'Lille': ['Lille'],
+        'Rennes': ['Rennes'],
+        'Reims': ['Reims'],
+        'Le Havre': ['Le Havre'],
+        'Saint-Étienne': ['Saint-Étienne'],
+        'Toulon': ['Toulon'],
+        'Grenoble': ['Grenoble'],
+        'Dijon': ['Dijon'],
+        'Angers': ['Angers'],
+        'Nîmes': ['Nîmes'],
+        'Villeurbanne': ['Villeurbanne'],
+        'Rome': ['Rome'],
+        'Milan': ['Milan'],
+        'Naples': ['Naples'],
+        'Turin': ['Turin'],
+        'Palermo': ['Palermo'],
+        'Genoa': ['Genoa'],
+        'Bologna': ['Bologna'],
+        'Florence': ['Florence'],
+        'Bari': ['Bari'],
+        'Catania': ['Catania'],
+        'Venice': ['Venice'],
+        'Verona': ['Verona'],
+        'Messina': ['Messina'],
+        'Padua': ['Padua'],
+        'Trieste': ['Trieste'],
+        'Taranto': ['Taranto'],
+        'Brescia': ['Brescia'],
+        'Prato': ['Prato'],
+        'Reggio Calabria': ['Reggio Calabria'],
+        'Modena': ['Modena'],
+        'Madrid': ['Madrid'],
+        'Barcelona': ['Barcelona'],
+        'Valencia': ['Valencia'],
+        'Seville': ['Seville'],
+        'Malaga': ['Malaga'],
+        'Bilbao': ['Bilbao'],
+        'Murcia': ['Murcia'],
+        'Palma de Mallorca': ['Palma de Mallorca'],
+        'Las Palmas': ['Las Palmas'],
+        'Zaragoza': ['Zaragoza'],
+        'Alicante': ['Alicante'],
+        'Cordoba': ['Cordoba'],
+        'Valladolid': ['Valladolid'],
+        'Vigo': ['Vigo'],
+        'Gijon': ['Gijon'],
+        'L Hospitalet de Llobregat': ['L Hospitalet de Llobregat'],
+        'La Coruna': ['La Coruna'],
+        'Granada': ['Granada'],
+        'Cartagena': ['Cartagena'],
+        'San Sebastian': ['San Sebastian'],
+        'Amsterdam': ['Amsterdam'],
+        'Rotterdam': ['Rotterdam'],
+        'The Hague': ['The Hague'],
+        'Den Haag': ['Den Haag'],
+        'Utrecht': ['Utrecht'],
+        'Eindhoven': ['Eindhoven'],
+        'Tilburg': ['Tilburg'],
+        'Groningen': ['Groningen'],
+        'Almere': ['Almere'],
+        'Breda': ['Breda'],
+        'Nijmegen': ['Nijmegen'],
+        'Apeldoorn': ['Apeldoorn'],
+        'Haarlem': ['Haarlem'],
+        'Enschede': ['Enschede'],
+        'Arnhem': ['Arnhem'],
+        'Amersfoort': ['Amersfoort'],
+        'Vienna': ['Vienna'],
+        'Graz': ['Graz'],
+        'Linz': ['Linz'],
+        'Salzburg': ['Salzburg'],
+        'Innsbruck': ['Innsbruck'],
+        'Klagenfurt': ['Klagenfurt'],
+        'Villach': ['Villach'],
+        'Wels': ['Wels'],
+        'Sankt Pölten': ['Sankt Pölten'],
+        'Dornbirn': ['Dornbirn'],
+        'Wiener Neustadt': ['Wiener Neustadt'],
+        'Steyr': ['Steyr'],
+        'Feldkirch': ['Feldkirch'],
+        'Bregenz': ['Bregenz'],
+        'Leoben': ['Leoben']
+    }
+    lookup_districts = LookupData(
+        name="city",
+        data=cities_dict)
+    config = GeoTextConfiguration(**{"use_demo_data": False})
+    geotextCity = GeoText(config)
+    geotextCity.add(lookup_districts)
+    return geotextCity
+
+
+def GetCity(a, geotextCity):
+    c = geotextCity.extract(a['Hotel_Address'], span_info=True)
+    return list(c['city'].keys())[-1]
+
+
+def GetCountry(a, geotextCountry):
+    n = geotextCountry.extract(a['Hotel_Address'], span_info=True)
+    return list(n['countries'].keys())[-1]
+
+##
 
 def extractNumberFromString(text):
     res = re.search('[0-9]+', text)
