@@ -95,8 +95,16 @@ def featureScalingScikit(df):
 ##
 
 # splitting dataset into train, valid, test
-def split(X, y):
-    return train_test_split(X, y, test_size=0.4, random_state=0, shuffle=False)
+def split(data):
+    X = data[:, data.columns != TARGET_COLUMN]
+    y = data[TARGET_COLUMN]
+
+    xtr, xts, ytr, yts = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
+
+    dftr = pd.concat([xtr, ytr], axis=1)
+    dfts = pd.concat([xts, yts], axis=1)
+
+    return dftr, dfts
     # X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.50, shuffle=True)
     # return X_train, X_test, X_val, y_train, y_test, y_val
 

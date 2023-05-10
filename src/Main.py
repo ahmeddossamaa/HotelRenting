@@ -1,19 +1,15 @@
 from Preprocessing import preprocessing, processNewColumns, GetMissingTripType, encodeColumns, scaleColumns, \
     fillTripType
-from config.constants import TARGET_COLUMN, CURRENT_VERSION, ENCODE_COLS, REGRESSION_DATASET
+from config.constants import TARGET_COLUMN, CURRENT_VERSION, ENCODE_COLS, REGRESSION_DATASET, CLASSIFICATION_DATASET
 from src.FeatureSelection import pearson
 from src.Helpers import save, open_file, pickleStore, split, pickleOpen
 from src.Model import train_model, evaluate_model, RandomForestModel, MultipleLinearRegressor, SVRModel
 
 
 def processing_v2(data, clf=False, isTesting=False):
-    # data = data.drop_duplicates()
-
-    # data = data.dropna()
-
     data = processNewColumns(data)
 
-    # save(data, "processed-columns", 2)
+    # save(data, "processing-phase", 2)
 
     cols = ENCODE_COLS
     if clf:
@@ -24,26 +20,31 @@ def processing_v2(data, clf=False, isTesting=False):
 
     data = encodeColumns(data, cols=cols, isTesting=isTesting)
 
+    # save(data, "encoding-phase", 1)
+
     data = fillTripType(data)
 
-    # data = scaleColumns(data)
+    # save(data, "fill-trip-type-phase", 1)
 
-    save(data, "processed-columns-lr", CURRENT_VERSION)
+    data = scaleColumns(data)
 
-    return data
-    # if not isTesting:
-    #     f = pearson(data, 0.02)
-    #     pickleStore(f, 'features')
-    # else:
-    #     f = pickleOpen('features')
-    #
-    # data = data[f]
-    #
-    # return data
+    # save(data, "scaling-phase", 1)
 
     # save(data, "processed-columns-lr", CURRENT_VERSION)
 
-    # print(data[data['days_number'].isna()])
+    return data
+
+
+def main_v2(file, clf=False):
+    data = open_file(file)
+
+    dftr, dfts = split(data)
+
+    dftr = processing_v2(dftr, clf=clf, isTesting=False)
+    dfts = processing_v2(dfts, clf=clf, isTesting=True)
+
+    save(dftr, "dftr-reg" if not clf else "dftr-clf", CURRENT_VERSION)
+    save(dfts, "dfts-reg" if not clf else "dfts-clf", CURRENT_VERSION)
 
 
 def main():
@@ -81,4 +82,5 @@ def main():
 
 
 if __name__ == '__main__':
-    processing_v2(open_file(REGRESSION_DATASET))
+    main_v2(REGRESSION_DATASET, clf=False)
+    main_v2(CLASSIFICATION_DATASET, clf=True)

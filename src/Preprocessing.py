@@ -16,21 +16,6 @@ from src.Helpers import geoCoding, labelEncoding, featureScaling, extractNumberF
     pickleStore, open_file, pickleOpen, encode, one_hot_encode, split, initcitiesDict, GetCity, GetCountry, getLatLng
 import concurrent.futures
 
-"""def fix_date(x):
-    for i in range(len(x)):
-        if x[i].find("-") != -1:
-            t = x[i].split("-")
-        elif x[i].find("/") != -1:
-            t = x[i].split("/")
-        else:
-            continue
-
-        x[i] = float(dt.date(int(t[2]), int(t[1]), int(t[0])).timetuple().tm_yday)
-
-    return pd.DataFrame({
-        'Date': x
-    }, dtype='float64')"""
-
 
 def fix_date(a):
     date = pd.to_datetime(a, infer_datetime_format=True, dayfirst=True)
@@ -85,8 +70,108 @@ def processLongLat(a):
     return None, None
 
 
+"""def process_batch(batch):
+    batch.loc[:, 'tags_result'] = batch[TAGS_COLUMN].apply(process_tags_column)
+    batch.loc[:, 'date_result'] = batch[DATE_COLUMN].apply(fix_date)
+    batch.loc[:, 'days_since_result'] = batch["days_since_review"].apply(extractNumberFromString)
+    batch = pd.concat([batch, getCityAndCountry(batch)], axis=1)
+    batch = batch.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address",
+                       TAGS_COLUMN, DATE_COLUMN], axis=1)
+    return batch
+
+
 def processNewColumns(data):
     # return open_file("processed_trip_type-v1.csv")
+    dateCols = ['review_day', 'review_month', 'review_year']
+    tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Split data into batches
+            batch_size = 10000
+            batches = [data[i:i+batch_size] for i in range(0, len(data), batch_size)]
+
+            # Process each batch
+            print("Processing Batches...")
+            futures = [executor.submit(process_batch, batch) for batch in batches]
+
+            # Wait for all futures to complete
+            results = [f.result() for f in futures]
+
+            # Concatenate results into a single dataframe
+            df_results = pd.concat(results, axis=0)
+
+            # Update data with processed columns
+            data[tagsCols] = df_results['tags_result'].tolist()
+            data[dateCols] = df_results['date_result'].tolist()
+            data["days_since_review"] = df_results['days_since_result'].tolist()
+            data = pd.concat([data, df_results.drop(['tags_result', 'date_result', 'days_since_result'], axis=1)], axis=1)
+
+            # Drop Columns
+            print("Dropping Redundant Columns...")
+            data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address",
+                       TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
+            print("Redundant Columns Dropped!")
+
+            # save(data, "processed-columns", CURRENT_VERSION)
+    except Exception as e:
+        print("Error while processing in processNewColumns:", e)
+
+    return data"""
+
+
+"""def processNewColumns(data):
+    # return open_file("processed_trip_type-v1.csv")
+    dateCols = ['review_day', 'review_month', 'review_year']
+    tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Tags
+            print("Processing Tags...")
+            # tags_future = executor.submit(process_tags_column, data[TAGS_COLUMN])
+            tags_future = executor.submit(lambda: data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series))
+
+            # Date
+            print("Processing Date...")
+            # date_future = executor.submit(fix_date, data[DATE_COLUMN])
+            date_future = executor.submit(lambda: data[DATE_COLUMN].apply(fix_date).apply(pd.Series))
+
+            # Days Since
+            print("Processing Days Since Review...")
+            # days_since_future = executor.submit(extractNumberFromString, data["days_since_review"])
+            days_since_future = executor.submit(lambda: data["days_since_review"].apply(extractNumberFromString).apply(pd.Series))
+
+            # Getting City & Country
+            print("Processing City & Country...")
+            city_country_future = executor.submit(getCityAndCountry, data)
+
+            # Wait for all futures to complete
+            # tags_result = tags_future.result()
+            # date_result = date_future.result()
+            # days_since_result = days_since_future.result()
+            # city_country_result = city_country_future.result()
+
+            # Update data with processed columns
+            data[tagsCols] = tags_future.result()
+            data[dateCols] = date_future.result()
+            data["days_since_review"] = days_since_future.result()
+            data = city_country_future.result()
+
+            # Drop Columns
+            print("Dropping Redundant Columns...")
+            data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address",
+                       TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
+            print("Redundant Columns Dropped!")
+
+            # save(data, "processed-columns", CURRENT_VERSION)
+    except Exception as e:
+        print("Error while processing in processNewColumns:", e)
+
+    return data"""
+
+
+def processNewColumns(data):
     dateCols = ['review_day', 'review_month', 'review_year']
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
@@ -304,11 +389,25 @@ def GetMissingTripType(df):
     # return data
 
 
+# def getCityAndCountry(data):
+#     geotextCity = initcitiesDict()
+#     geotextCountry = GeoText()
+#     data.loc[:, 'Hotel_City'] = data.apply(lambda x: GetCity(x, geotextCity), axis=1)
+#     data.loc[:, 'Hotel_Country'] = data.apply(lambda x: GetCountry(x, geotextCountry), axis=1)
+#     return data
+
+
 def getCityAndCountry(data):
     geotextCity = initcitiesDict()
     geotextCountry = GeoText()
-    data.loc[:, 'Hotel_City'] = data.apply(lambda x: GetCity(x, geotextCity), axis=1)
-    data.loc[:, 'Hotel_Country'] = data.apply(lambda x: GetCountry(x, geotextCountry), axis=1)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_city = executor.submit(data.apply, lambda x: GetCity(x, geotextCity), axis=1)
+        future_country = executor.submit(data.apply, lambda x: GetCountry(x, geotextCountry), axis=1)
+
+    data.loc[:, 'Hotel_City'] = future_city.result()
+    data.loc[:, 'Hotel_Country'] = future_country.result()
+
     return data
 
 
@@ -322,24 +421,29 @@ def testingPhasePreprocessing(data):
     data = encodeColumns(data, isTesting=True)
 
     f = pickleOpen("features")
-    print(data)
+    # print(data)
     data = data[f]
 
     return data
 
 
 def fillTripType(dftr):
+    print("Filling Trip Type...")
     dfts = pd.DataFrame(dftr)
 
+    print("Dropping nulls...")
     dftr.drop(dftr.loc[dftr['trip_type'] == 2].index, inplace=True)
 
+    print("Training model...")
     clf = TreeClassifier(dftr[['room_type', 'trv_type']], dftr['trip_type'])
 
     try:
+        print("Predicting...")
         for i in range(len(dfts)):
             if dfts.iloc[i]['trip_type'] == 2:
                 h = clf.predict([dfts.loc[i, ['room_type', 'trv_type']]])
                 dfts.loc[i, 'trip_type'] = h[0]
+        print("Trip Type Filled!")
     except NameError as e:
         print(e)
 
