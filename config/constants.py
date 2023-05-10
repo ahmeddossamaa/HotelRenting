@@ -1,3 +1,5 @@
+REGRESSION_DATASET = "hotel-regression-dataset.csv"
+
 TARGET_COLUMN = 'Reviewer_Score'
 
 TAGS_COLUMN = 'Tags'
@@ -9,8 +11,8 @@ CURRENT_VERSION = 1
 
 ENCODE_COLS = {
     'trip_type': {
-        'label': False,
-        'oneHot': True,
+        'label': True,
+        'oneHot': False,
     },
     'trv_type': {
         'label': True,
@@ -29,12 +31,12 @@ ENCODE_COLS = {
         'oneHot': False,
     },
     'Hotel_Country': {
-        'label': False,
-        'oneHot': True,
+        'label': True,
+        'oneHot': False,
     },
     'Hotel_City': {
-        'label': False,
-        'oneHot': True,
+        'label': True,
+        'oneHot': False,
     },
 }
 

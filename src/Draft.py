@@ -1,9 +1,11 @@
+import concurrent.futures
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from config.constants import CURRENT_VERSION, ADDRESS_COLUMN, TARGET_COLUMN
+from config.constants import CURRENT_VERSION, ADDRESS_COLUMN, TARGET_COLUMN, TAGS_COLUMN, DATE_COLUMN
 from src.Helpers import save, open_file
-from src.Preprocessing import GetMissingTripType
+from src.Preprocessing import GetMissingTripType, encodeColumns
 
 # from config.constants import TAGS_COLUMN, ADDRESS_COLUMN, TARGET_COLUMN
 # from src.Helpers import binarySearch, save, open_file, featureScaling, pickleOpen
@@ -279,13 +281,32 @@ from src.Preprocessing import GetMissingTripType
 # # nltk.downloader.download('punkt')
 # # nltk.download('averaged_perceptron_tagger')
 
-data = open_file("hotel-regression-dataset.csv")
+# data = open_file("hotel-regression-dataset.csv")
+#
+# X = data.loc[:, data.columns != TARGET_COLUMN]
+# y = data[TARGET_COLUMN]
+#
+# xtr, xts, ytr, yts = train_test_split(X, y, test_size=0.01)
+#
+# data = pd.concat([xts, yts], axis=1)
+#
+# print(data['Hotel_City'].unique())
+# data = enc
+# d = dict()
+# i = "test"
+# print(d[i] if i in d.keys() else "haha")
 
-X = data.loc[:, data.columns != TARGET_COLUMN]
-y = data[TARGET_COLUMN]
 
-xtr, xts, ytr, yts = train_test_split(X, y, test_size=0.01)
 
-data = pd.concat([xts, yts], axis=1)
+# to handle test nulls -> check for each col? if that col isn't one of the selected drop col otherwise trytohandle!
 
-save(data, "data-test", CURRENT_VERSION)
+data = open_file("processed-columns-v1.csv")
+
+data = encodeColumns(data, {
+    'days_number': {
+        'label': True,
+        'oneHot': False,
+    }
+}, file="testingDays")
+
+save(data, "testingDays", CURRENT_VERSION)
