@@ -1,3 +1,5 @@
+import concurrent.futures
+
 from Preprocessing import preprocessing, processNewColumns, GetMissingTripType, encodeColumns, scaleColumns, \
     fillTripType
 from config.constants import TARGET_COLUMN, CURRENT_VERSION, ENCODE_COLS, REGRESSION_DATASET, CLASSIFICATION_DATASET
@@ -6,31 +8,27 @@ from src.Helpers import save, open_file, pickleStore, split, pickleOpen
 from src.Model import train_model, evaluate_model, RandomForestModel, MultipleLinearRegressor, SVRModel
 
 
-def processing_v2(data, clf=False, isTesting=False):
-    data = processNewColumns(data)
+def processing_v2(data, output, v=CURRENT_VERSION, clf=False, isTesting=False):
+    # data = processNewColumns(data)
 
-    # save(data, "processing-phase", 2)
+    # save(data, 'processing-phase', 4)
+
+    data = open_file("processing-phase-v5.csv")
 
     cols = ENCODE_COLS
     if clf:
-        cols[TARGET_COLUMN] = {
+        cols[TARGET_COLUMN] = dict({
             'label': True,
             'oneHot': False,
-        },
+        })
 
-    data = encodeColumns(data, cols=cols, isTesting=isTesting)
-
-    # save(data, "encoding-phase", 1)
+    data = encodeColumns(data, cols=cols, isTesting=isTesting, file="encoders-clf" if clf else "encoders-reg")
 
     data = fillTripType(data)
 
-    # save(data, "fill-trip-type-phase", 1)
-
     data = scaleColumns(data)
 
-    # save(data, "scaling-phase", 1)
-
-    # save(data, "processed-columns-lr", CURRENT_VERSION)
+    save(data, output, v)
 
     return data
 
@@ -38,13 +36,13 @@ def processing_v2(data, clf=False, isTesting=False):
 def main_v2(file, clf=False):
     data = open_file(file)
 
+    print(f"processNewColumns {clf}...")
+    data = processNewColumns(data)
+
     dftr, dfts = split(data)
 
-    dftr = processing_v2(dftr, clf=clf, isTesting=False)
-    dfts = processing_v2(dfts, clf=clf, isTesting=True)
-
-    save(dftr, "dftr-reg" if not clf else "dftr-clf", CURRENT_VERSION)
-    save(dfts, "dfts-reg" if not clf else "dfts-clf", CURRENT_VERSION)
+    dftr = processing_v2(dftr, "dftr-reg" if not clf else "dftr-clf", v=CURRENT_VERSION, clf=clf, isTesting=False)
+    dfts = processing_v2(dfts, "dfts-reg" if not clf else "dfts-clf", v=CURRENT_VERSION, clf=clf, isTesting=True)
 
 
 def main():
@@ -82,5 +80,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main_v2(REGRESSION_DATASET, clf=False)
-    main_v2(CLASSIFICATION_DATASET, clf=True)
+    # with concurrent.futures.ThreadPoolExecutor() as e:
+    #     reg = e.submit(main_v2, REGRESSION_DATASET, clf=False)
+    #     clf = e.submit(main_v2, CLASSIFICATION_DATASET, clf=True)
+    # reg.result()
+    # clf.result()
+    # main_v2(REGRESSION_DATASET, clf=False)
+    # main_v2(CLASSIFICATION_DATASET, clf=True)
+    processing_v2(open_file(CLASSIFICATION_DATASET), "clf-data", clf=True)

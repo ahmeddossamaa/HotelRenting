@@ -179,16 +179,18 @@ def processNewColumns(data):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Tags
             print("Processing Tags...")
-            tags_future = executor.submit(data[TAGS_COLUMN].apply(process_tags_column).apply, pd.Series)
+            # tags_future = executor.submit(pd.concat, executor.map(process_tags_column, data[TAGS_COLUMN]))
+            tags_future = executor.submit(lambda: data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series))
 
             # Date
             print("Processing Date...")
-            date_future = executor.submit(data[DATE_COLUMN].apply(fix_date).apply, pd.Series)
+            # date_future = executor.submit(pd.concat, executor.map(fix_date, data[DATE_COLUMN]))
+            date_future = executor.submit(lambda: data[DATE_COLUMN].apply(fix_date).apply(pd.Series))
 
             # Days Since
             print("Processing Days Since Review...")
-            days_since_future = executor.submit(data["days_since_review"].apply(extractNumberFromString).apply,
-                                                pd.Series)
+            # days_since_future = executor.submit(pd.concat, executor.map(extractNumberFromString, data["days_since_review"]))
+            days_since_future = executor.submit(lambda: data["days_since_review"].apply(extractNumberFromString).apply(pd.Series))
 
             # Getting City & Country
             print("Processing City & Country...")
@@ -208,8 +210,7 @@ def processNewColumns(data):
 
             # Drop Columns
             print("Dropping Redundant Columns...")
-            data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address",
-                       TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
+            data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address", "lng", "lat", TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
             print("Redundant Columns Dropped!")
 
             # save(data, "processed-columns", CURRENT_VERSION)
@@ -252,6 +253,7 @@ def encodeColumns(data, cols=ENCODE_COLS, isTesting=False, file="encoders"):
                 data = data.drop(i, axis=1)
 
             if encoder is not None:
+                # print(encoder.classes_)
                 encoders[i] = encoder
         print("Columns Encoded!")
 
@@ -431,19 +433,35 @@ def fillTripType(dftr):
     print("Filling Trip Type...")
     dfts = pd.DataFrame(dftr)
 
-    print("Dropping nulls...")
-    dftr.drop(dftr.loc[dftr['trip_type'] == 2].index, inplace=True)
+    # save(dftr, "dftr-log", CURRENT_VERSION)
 
-    print("Training model...")
-    clf = TreeClassifier(dftr[['room_type', 'trv_type']], dftr['trip_type'])
+    encoders = pickleOpen("encoders")
+
+    classes = encoders['trip_type'].classes_
+
+    # print(classes)
+
+    n = 2
+    for i in range(len(classes)):
+        if classes[i] == np.nan:
+            n = i
+            break
 
     try:
+        print("Dropping nulls...")
+        dftr = dftr[dftr['trip_type'] != n]
+
+        print("Training model...")
+        clf = TreeClassifier(dftr[['room_type', 'trv_type']], dftr['trip_type'])
+
+        # save(dftr, "dftr-log", CURRENT_VERSION + 1)
+
         print("Predicting...")
-        for i in range(len(dfts)):
-            if dfts.iloc[i]['trip_type'] == 2:
-                h = clf.predict([dfts.loc[i, ['room_type', 'trv_type']]])
-                dfts.loc[i, 'trip_type'] = h[0]
-        print("Trip Type Filled!")
+        b = dfts['trip_type'] == n
+
+        dfts.loc[b, 'trip_type'] = clf.predict(dfts.loc[b, ['room_type', 'trv_type']])
+
+        print(f"Trip Type Filled!")
     except NameError as e:
         print(e)
 
