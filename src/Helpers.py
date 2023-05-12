@@ -191,6 +191,7 @@ def binarySearch(arr, x):
     # If we reach here, then the element was not present
     return -1
 
+
 # fill lat & lng nulls
 def geoCoding(text):
     url = f"https://api.geoapify.com/v1/geocode/search?apiKey=8a8befb5cff9493fa7f326a514a8d555&text={text}"
@@ -199,9 +200,10 @@ def geoCoding(text):
     headers["Accept"] = "application/json"
 
     resp = requests.get(url, headers=headers)
-    #print(resp.json()["features"][0]["geometry"]["coordinates"])
+    # print(resp.json()["features"][0]["geometry"]["coordinates"])
     coordinates = resp.json()["features"][0]["geometry"]["coordinates"]
     return coordinates[0], coordinates[1]
+
 
 def getLatLng(data):
     d = data[data['lat'].isnull()]
@@ -212,8 +214,10 @@ def getLatLng(data):
             print(data.isna().sum())
             print(f"stopped at - {index}, the error -> {e}")
 
-    save(data,"cls-complete", CURRENT_VERSION)
+    save(data, "cls-complete", CURRENT_VERSION)
     return data
+
+
 ##
 
 # address preprocessing funs
@@ -346,6 +350,7 @@ def GetCountry(a, geotextCountry):
     n = geotextCountry.extract(a['Hotel_Address'], span_info=True)
     return list(n['countries'].keys())[-1]
 
+
 ##
 
 def extractNumberFromString(text):
@@ -469,13 +474,3 @@ def initcitiesDict():
     geotextCity = GeoText(config)
     geotextCity.add(lookup_districts)
     return geotextCity
-
-
-def GetCity(a, geotextCity):
-    c = geotextCity.extract(a['Hotel_Address'], span_info=True)
-    return list(c['city'].keys())[-1]
-
-
-def GetCountry(a, geotextCountry):
-    n = geotextCountry.extract(a['Hotel_Address'], span_info=True)
-    return list(n['countries'].keys())[-1]

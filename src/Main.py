@@ -2,18 +2,24 @@ import concurrent.futures
 
 from Preprocessing import preprocessing, processNewColumns, GetMissingTripType, encodeColumns, scaleColumns, \
     fillTripType
-from config.constants import TARGET_COLUMN, CURRENT_VERSION, ENCODE_COLS, REGRESSION_DATASET, CLASSIFICATION_DATASET
+from config.constants import TARGET_COLUMN, CURRENT_VERSION, ENCODE_COLS, REGRESSION_DATASET, CLASSIFICATION_DATASET, \
+    PRODUCTION
 from src.FeatureSelection import pearson
 from src.Helpers import save, open_file, pickleStore, split, pickleOpen
 from src.Model import train_model, evaluate_model, RandomForestModel, MultipleLinearRegressor, SVRModel
 
 
 def processing_v2(data, output, v=CURRENT_VERSION, clf=False, isTesting=False):
-    # data = processNewColumns(data)
+    file = "encoders-clf" if clf else "encoders-reg"
 
-    # save(data, 'processing-phase', 4)
+    if PRODUCTION:
+        data = processNewColumns(data)
 
-    data = open_file("processing-phase-v5.csv")
+    # v = 5 if not clf else 6
+
+    # save(data, 'processing-phase', v)
+
+    # data = open_file(f"processing-phase-v{v}.csv")
 
     cols = ENCODE_COLS
     if clf:
@@ -22,11 +28,17 @@ def processing_v2(data, output, v=CURRENT_VERSION, clf=False, isTesting=False):
             'oneHot': False,
         })
 
-    data = encodeColumns(data, cols=cols, isTesting=isTesting, file="encoders-clf" if clf else "encoders-reg")
+    data = encodeColumns(data, cols=cols, isTesting=isTesting, file=file)
 
-    data = fillTripType(data)
+    save(data, "encoding-phase", v)
+
+    data = fillTripType(data, file=file)
+
+    save(data, "filling-phase", v)
 
     data = scaleColumns(data)
+
+    # save(data, "scaling-phase", v)
 
     save(data, output, v)
 
@@ -36,8 +48,10 @@ def processing_v2(data, output, v=CURRENT_VERSION, clf=False, isTesting=False):
 def main_v2(file, clf=False):
     data = open_file(file)
 
-    print(f"processNewColumns {clf}...")
-    data = processNewColumns(data)
+    if not PRODUCTION:
+        print(f"processNewColumns {clf}...")
+        data = processNewColumns(data)
+        # save(data, "processNewColumns", CURRENT_VERSION)
 
     dftr, dfts = split(data)
 
@@ -51,8 +65,7 @@ def main():
     dftr = open_file("dftr-v1.csv")
     dfts = open_file("dfts-v1.csv")
 
-    print(
-        "--------------------------------------- Feature Selection Phase Start ---------------------------------------")
+    print("--------------------------------------- Feature Selection Phase Start ---------------------------------------")
     f = pearson(dftr, 0.020)
     pickleStore(f, "features")
     dftr = dftr[f]
@@ -86,5 +99,8 @@ if __name__ == '__main__':
     # reg.result()
     # clf.result()
     # main_v2(REGRESSION_DATASET, clf=False)
-    # main_v2(CLASSIFICATION_DATASET, clf=True)
-    processing_v2(open_file(CLASSIFICATION_DATASET), "clf-data", clf=True)
+    main_v2(CLASSIFICATION_DATASET, clf=True)
+    # processing_v2(open_file(CLASSIFICATION_DATASET), "clf-data", clf=True)
+    # data = open_file(CLASSIFICATION_DATASET)
+
+    # print(data.isna().sum())

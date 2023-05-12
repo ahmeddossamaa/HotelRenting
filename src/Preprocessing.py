@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from flashgeotext.geotext import GeoText
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from src.Model import TreeClassifier
 from sklearn.metrics import accuracy_score
 from config.constants import ADDRESS_COLUMN, TAGS_COLUMN, DATE_COLUMN, CURRENT_VERSION, TARGET_COLUMN, ENCODE_COLS
@@ -20,45 +20,6 @@ import concurrent.futures
 def fix_date(a):
     date = pd.to_datetime(a, infer_datetime_format=True, dayfirst=True)
     return date.day, date.month, date.year
-
-
-def process_tags_column(a):
-    trip_type = ''
-    trv_type = ''
-    room_type = ''
-    days_number = ''
-    submitted = 0
-    pet = 0
-
-    try:
-        b = eval(a)
-        # remaining = []
-
-        for i in b:
-            i = i.lower().strip()
-
-            check = lambda r: re.search(r, i)
-
-            if check(r"submitted|mobile") and submitted == 0:
-                submitted = 1
-            elif check(r"pet") and pet == 0:
-                pet = 1
-            elif check(r"\btrip\b") and trip_type == '':
-                trip_type = i
-            elif check(r"night[s]?") and days_number == '':
-                days_number = extractNumberFromString(i)
-            elif check(
-                    r"room[s]?|bed[s]?|suite[s]?|deluxe[s]?|standard|studio|apartment|king[s]?|queen[s]?") and room_type == '':
-                room_type = i
-            elif check(r"group|couple|solo|family|friend[s]?") and trv_type == '':
-                trv_type = i
-            # else:
-            #     remaining.append(i)
-
-    except:
-        print(a)
-
-    return trip_type, trv_type, room_type, days_number, submitted, pet
 
 
 def processLongLat(a):
@@ -119,7 +80,6 @@ def processNewColumns(data):
 
     return data"""
 
-
 """def processNewColumns(data):
     # return open_file("processed_trip_type-v1.csv")
     dateCols = ['review_day', 'review_month', 'review_year']
@@ -175,110 +135,172 @@ def processNewColumns(data):
     dateCols = ['review_day', 'review_month', 'review_year']
     tagsCols = ['trip_type', 'trv_type', 'room_type', 'days_number', 'submitted_by_mobile', 'with_pet']
 
-    try:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Tags
-            print("Processing Tags...")
-            # tags_future = executor.submit(pd.concat, executor.map(process_tags_column, data[TAGS_COLUMN]))
-            tags_future = executor.submit(lambda: data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series))
+    def splitDate(df):
+        df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
 
-            # Date
-            print("Processing Date...")
-            # date_future = executor.submit(pd.concat, executor.map(fix_date, data[DATE_COLUMN]))
-            date_future = executor.submit(lambda: data[DATE_COLUMN].apply(fix_date).apply(pd.Series))
+        df['year'] = df[DATE_COLUMN].dt.year
+        df['month'] = df[DATE_COLUMN].dt.month
+        df['day'] = df[DATE_COLUMN].dt.day
 
-            # Days Since
-            print("Processing Days Since Review...")
-            # days_since_future = executor.submit(pd.concat, executor.map(extractNumberFromString, data["days_since_review"]))
-            days_since_future = executor.submit(lambda: data["days_since_review"].apply(extractNumberFromString).apply(pd.Series))
+        print("----------Date Finished----------")
 
-            # Getting City & Country
-            print("Processing City & Country...")
-            city_country_future = executor.submit(getCityAndCountry, data)
+        return df
 
-            # Wait for all futures to complete
-            tags_result = tags_future.result()
-            date_result = date_future.result()
-            days_since_result = days_since_future.result()
-            city_country_result = city_country_future.result()
+    def process_tags_column(a):
+        trip_type = ''
+        trv_type = ''
+        room_type = ''
+        days_number = ''
+        submitted = 0
+        pet = 0
 
-            # Update data with processed columns
-            data[tagsCols] = tags_result
-            data[dateCols] = date_result
-            data["days_since_review"] = days_since_result
-            data = city_country_result
+        try:
+            b = eval(a)
+            # remaining = []
 
-            # Drop Columns
-            print("Dropping Redundant Columns...")
-            data.drop(["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address", "lng", "lat", TAGS_COLUMN, DATE_COLUMN], axis=1, inplace=True)
-            print("Redundant Columns Dropped!")
+            for i in b:
+                i = i.lower().strip()
 
-            # save(data, "processed-columns", CURRENT_VERSION)
-    except Exception as e:
-        print("Error while processing in processNewColumns:", e)
+                check = lambda r: re.search(r, i)
+
+                if check(r"submitted|mobile") and submitted == 0:
+                    submitted = 1
+                elif check(r"pet") and pet == 0:
+                    pet = 1
+                elif check(r"\btrip\b") and trip_type == '':
+                    trip_type = i
+                elif check(r"night[s]?") and days_number == '':
+                    days_number = extractNumberFromString(i)
+                elif check(
+                        r"room[s]?|bed[s]?|suite[s]?|deluxe[s]?|standard|studio|apartment|king[s]?|queen[s]?") and room_type == '':
+                    room_type = i
+                elif check(r"group|couple|solo|family|friend[s]?") and trv_type == '':
+                    trv_type = i
+                # else:
+                #     remaining.append(i)
+
+        except:
+            print(a)
+
+        return trip_type, trv_type, room_type, days_number, submitted, pet
+
+    # try:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        print("Processing Tags...")
+
+        # tags_future = executor.submit(pd.concat, executor.map(process_tags_column, data[TAGS_COLUMN]))
+        def temp():
+            v = data[TAGS_COLUMN].apply(process_tags_column).apply(pd.Series)
+            print("----------Tags Finished----------")
+            return v
+
+        tags_future = executor.submit(temp)
+
+        print("Processing Date...")
+        # date_future = executor.submit(pd.concat, executor.map(fix_date, data[DATE_COLUMN]))
+        # date_future = executor.submit(lambda: data[DATE_COLUMN].apply(fix_date).apply(pd.Series))
+        date_future = executor.submit(splitDate, data)
+
+        print("Processing Days Since Review...")
+        # days_since_future = executor.submit(pd.concat, executor.map(extractNumberFromString, data["days_since_review"]))
+
+        def temp2():
+            v = data['days_since_review'].str.extract(r'(\d+)').astype(int)
+            print("----------Days Since Review Finished----------")
+            return v
+
+        days_since_future = executor.submit(temp2)
+
+        print("Processing City & Country...")
+        city_country_future = executor.submit(getCityAndCountry, data)
+
+    data[tagsCols] = tags_future.result()
+    # data[tagsCols].fillna(-1, inplace=True)
+
+    data["days_since_review"] = days_since_future.result()
+
+    data = date_future.result()
+    data = city_country_future.result()
+
+    print("Dropping Redundant Columns...")
+    data.drop(
+        ["Hotel_Address", "Negative_Review", "Positive_Review", "days_since_review", "Hotel_Address", TAGS_COLUMN,
+         DATE_COLUMN], axis=1, inplace=True)
+    print("Redundant Columns Dropped!")
+
+    # save(data, "processed-columns", CURRENT_VERSION)
+    # except Exception as e:
+    #     print("Error while processing in processNewColumns:", e)
 
     return data
 
 
 def encodeColumns(data, cols=ENCODE_COLS, isTesting=False, file="encoders"):
-    # if isTesting:
-    #     data = data.dropna()
+    # try:
+    print("Encoding Columns...")
+    encoders = dict()
 
-    try:
-        encoders = dict()
-        print("Encoding Columns...")
-        # print(data)
+    if isTesting:
+        encoders = pickleOpen(file)
 
-        if isTesting:
-            encoders = pickleOpen(file)
-        for i in cols:
-            encoder = encoders[i] if i in encoders.keys() else None
+    # print(data['trip_type'].value_counts())
 
-            if cols[i]['label']:
-                # data[i] = data[i].map(lambda d: d if d in encoder.classes_ else encoder.classes_)
-                if isTesting:
-                    data[i] = data[i].map(lambda d: d if d in encoder.classes_ else encoder.classes_)
-                    pass
-                else:
-                    encoder = LabelEncoder()
-                    encoder.fit(data[i])
-                    encoder.classes_ = np.append(encoder.classes_, -1)
+    for i in cols:
+        encoder = encoders[i] if encoders.get(i) is not None else None
 
-                data.loc[:, i] = encoder.transform(data[i])
-            elif cols[i]['oneHot']:
-                dummy_df = pd.get_dummies(data[i], prefix=i)
+        # print(i, data[i].value_counts())
 
-                data = pd.concat([data, dummy_df], axis=1)
+        if cols[i]['label']:
+            if isTesting:
+                data[i] = data[i].map(lambda d: d if d in encoder.classes_ else np.nan)
+            else:
+                encoder = LabelEncoder()
+                encoder.fit(data[i])
+                encoder.classes_ = np.append(encoder.classes_, np.nan)
 
-                data = data.drop(i, axis=1)
+            data.loc[:, i] = encoder.transform(data[i])
+        elif cols[i]['oneHot']:
+            dummy_df = pd.get_dummies(data[i], prefix=i)
 
-            if encoder is not None:
-                # print(encoder.classes_)
-                encoders[i] = encoder
-        print("Columns Encoded!")
+            data = pd.concat([data, dummy_df], axis=1)
 
-        # save(data, "encoded-columns", CURRENT_VERSION)
+            data = data.drop(i, axis=1)
 
-        if not isTesting:
-            pickleStore(encoders, file)
+        if encoder is not None:
+            # print(encoder.classes_)
+            encoders[i] = encoder
+    print("Columns Encoded!")
 
-        # save(data, "scaled-columns", CURRENT_VERSION)
-    except Exception as e:
-        print("Error while processing in encodeAndScaleColumns:", e)
+    # save(data, "encoded-columns", CURRENT_VERSION)
+    print(data['trip_type'].value_counts())
+    print(encoders['trip_type'].classes_)
+    if not isTesting:
+        pickleStore(encoders, file)
+
+    # save(data, "scaled-columns", CURRENT_VERSION)
+    # except Exception as e:
+    #     print("Error while processing in encodeAndScaleColumns:", e)
 
     return data
 
 
 def scaleColumns(data):
-    try:
-        print("Scaling Columns...")
-        for i in data:
-            data[i] = featureScaling(data[i])
-        print("Columns Scaled!")
-    except Exception as e:
-        print("Error while processing in encodeAndScaleColumns:", e)
+    # try:
+    #     print("Scaling Columns...")
+    #     for i in data:
+    #         data[i] = featureScaling(data[i])
+    #     print("Columns Scaled!")
+    # except Exception as e:
+    #     print("Error while processing in encodeAndScaleColumns:", e)
 
-    return data
+    data = data.replace('', np.nan)
+    data = data.fillna(data.mean())
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+
+    scaler.fit(data)
+
+    return pd.DataFrame(scaler.transform(data), columns=data.columns)
 
 
 def preprocessing():
@@ -391,15 +413,57 @@ def GetMissingTripType(df):
     # return data
 
 
-# def getCityAndCountry(data):
-#     geotextCity = initcitiesDict()
-#     geotextCountry = GeoText()
-#     data.loc[:, 'Hotel_City'] = data.apply(lambda x: GetCity(x, geotextCity), axis=1)
-#     data.loc[:, 'Hotel_Country'] = data.apply(lambda x: GetCountry(x, geotextCountry), axis=1)
-#     return data
-
-
 def getCityAndCountry(data):
+    geotextCity = initcitiesDict()
+    geotextCountry = GeoText()
+
+    a = pickleOpen("addressMap")
+
+    addressMap = a if a is not None else dict()
+
+    def GetCity(a):
+        # print(f"a= {a}")
+        if addressMap.get(a) is None:
+            addressMap[a] = dict({
+                'country': '',
+                'city': ''
+            })
+
+        if addressMap[a]['city'] == '':
+            c = geotextCity.extract(a, span_info=True)
+            addressMap[a]['city'] = list(c['city'].keys())[-1]
+        # else:
+        #     print(addressMap[a]['city'])
+
+        return addressMap[a]['city']
+
+    def GetCountry(a):
+        # print(f"a= {a}")
+        if addressMap.get(a) is None:
+            addressMap[a] = dict({
+                'country': '',
+                'city': ''
+            })
+
+        if addressMap[a]['country'] == '':
+            n = geotextCountry.extract(a, span_info=True)
+            addressMap[a]['country'] = list(n['countries'].keys())[-1]
+        # else:
+        #     print(addressMap[a]['country'])
+
+        return addressMap[a]['country']
+
+    data.loc[:, 'Hotel_City'] = data[ADDRESS_COLUMN].apply(GetCity).apply(pd.Series)
+    data.loc[:, 'Hotel_Country'] = data[ADDRESS_COLUMN].apply(GetCountry).apply(pd.Series)
+
+    pickleStore(addressMap, "addressMap")
+
+    print("----------Get Country & City Finished----------")
+
+    return data
+
+
+"""def getCityAndCountry(data):
     geotextCity = initcitiesDict()
     geotextCountry = GeoText()
 
@@ -410,7 +474,7 @@ def getCityAndCountry(data):
     data.loc[:, 'Hotel_City'] = future_city.result()
     data.loc[:, 'Hotel_Country'] = future_country.result()
 
-    return data
+    return data"""
 
 
 def testingPhasePreprocessing(data):
@@ -429,27 +493,32 @@ def testingPhasePreprocessing(data):
     return data
 
 
-def fillTripType(dftr):
+def fillTripType(dftr, file="encoders"):
     print("Filling Trip Type...")
     dfts = pd.DataFrame(dftr)
 
     # save(dftr, "dftr-log", CURRENT_VERSION)
 
-    encoders = pickleOpen("encoders")
+    encoders = pickleOpen(file)
 
     classes = encoders['trip_type'].classes_
 
     # print(classes)
 
-    n = 2
+    print(f"classes = {classes}")
+
+    n = []
     for i in range(len(classes)):
-        if classes[i] == np.nan:
-            n = i
-            break
+        if classes[i] == 'business trip' or classes[i] == 'leisure trip':
+            continue
+        n.append(i)
+
+    # print(dftr['trip_type'].value_counts())
 
     try:
         print("Dropping nulls...")
-        dftr = dftr[dftr['trip_type'] != n]
+        # dftr = dftr[dftr['trip_type'] not in n]
+        dftr = dftr[~dftr['trip_type'].isin(n)]
 
         print("Training model...")
         clf = TreeClassifier(dftr[['room_type', 'trv_type']], dftr['trip_type'])
@@ -457,9 +526,14 @@ def fillTripType(dftr):
         # save(dftr, "dftr-log", CURRENT_VERSION + 1)
 
         print("Predicting...")
-        b = dfts['trip_type'] == n
+        b = dfts['trip_type'].isin(n)
+        s = dfts.loc[b, ['room_type', 'trv_type']]
 
-        dfts.loc[b, 'trip_type'] = clf.predict(dfts.loc[b, ['room_type', 'trv_type']])
+        # print(s)
+        if not s.empty:
+            h = clf.predict(s)
+
+            dfts.loc[b, 'trip_type'] = h
 
         print(f"Trip Type Filled!")
     except NameError as e:

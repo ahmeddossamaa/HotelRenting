@@ -3,9 +3,10 @@ import concurrent.futures
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from config.constants import CURRENT_VERSION, ADDRESS_COLUMN, TARGET_COLUMN, TAGS_COLUMN, DATE_COLUMN
+from config.constants import CURRENT_VERSION, ADDRESS_COLUMN, TARGET_COLUMN, TAGS_COLUMN, DATE_COLUMN, \
+    REGRESSION_DATASET
 from src.Helpers import save, open_file
-from src.Preprocessing import GetMissingTripType, encodeColumns
+from src.Preprocessing import GetMissingTripType, encodeColumns, getCityAndCountry
 
 # from config.constants import TAGS_COLUMN, ADDRESS_COLUMN, TARGET_COLUMN
 # from src.Helpers import binarySearch, save, open_file, featureScaling, pickleOpen
@@ -300,13 +301,19 @@ from src.Preprocessing import GetMissingTripType, encodeColumns
 
 # to handle test nulls -> check for each col? if that col isn't one of the selected drop col otherwise trytohandle!
 
-data = open_file("processed-columns-v1.csv")
+# data = open_file("processed-columns-v1.csv")
+#
+# data = encodeColumns(data, {
+#     'days_number': {
+#         'label': True,
+#         'oneHot': False,
+#     }
+# }, file="testingDays")
+#
+# save(data, "testingDays", CURRENT_VERSION)
 
-data = encodeColumns(data, {
-    'days_number': {
-        'label': True,
-        'oneHot': False,
-    }
-}, file="testingDays")
+data = open_file(REGRESSION_DATASET)
 
-save(data, "testingDays", CURRENT_VERSION)
+data = getCityAndCountry(data)
+
+save(data, "getCityAndCountry", 1)

@@ -1,3 +1,5 @@
+PRODUCTION = False
+
 REGRESSION_DATASET = "hotel-regression-dataset.csv"
 CLASSIFICATION_DATASET = "hotel-classification-dataset.csv"
 
